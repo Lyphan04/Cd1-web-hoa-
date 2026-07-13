@@ -31,13 +31,25 @@ function StatCard({ icon: Icon, label, value, sub, color = 'amber', to }) {
 }
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(null);
+  const [topProducts, setTopProducts]   = useState([]);
+  const [orderStatus, setOrderStatus]   = useState([]);
+  const [revenueData, setRevenueData]   = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
 
   useEffect(() => {
-    // Fetch stats
-    apiClient.get('/stats/dashboard').then(r => setStats(r.data)).catch(console.error);
-    apiClient.get('/orders?pageSize=5').then(r => setRecentOrders(r.data.items ?? [])).catch(() => setRecentOrders([]));
+    // Fetch 3 analytics endpoints mới
+    apiClient.get('/analytics/revenue-chart?type=month')
+      .then(r => setRevenueData(r.data))
+      .catch(console.error);
+    apiClient.get('/analytics/top-products')
+      .then(r => setTopProducts(r.data))
+      .catch(console.error);
+    apiClient.get('/analytics/order-status')
+      .then(r => setOrderStatus(r.data))
+      .catch(console.error);
+    apiClient.get('/orders?pageSize=5')
+      .then(r => setRecentOrders(r.data.items ?? []))
+      .catch(() => setRecentOrders([]));
   }, []);
 
   const STATUS_LABELS = {
@@ -57,14 +69,14 @@ export default function AdminDashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={TrendingUp} label="Doanh thu hôm nay" value={stats ? formatVnd(stats.revenueToday) : '—'}
-          sub={`Tháng này: ${stats ? formatVnd(stats.revenueMonth) : '—'}`} color="green" to="/admin/don-hang" />
-        <StatCard icon={ShoppingBag} label="Đơn hàng hôm nay" value={stats?.newOrdersToday ?? '—'}
-          sub={`Tháng này: ${stats?.totalOrdersMonth ?? '—'}`} color="blue" to="/admin/don-hang" />
-        <StatCard icon={Users} label="Tổng Khách hàng" value={stats?.totalUsers ?? '—'}
-          sub="Hệ thống" color="amber" to="/admin/nguoi-dung" />
-        <StatCard icon={Package} label="Top SP Bán Chạy" value={stats?.topProducts?.length ?? '—'}
-          sub="Hoa được yêu thích" color="red" to="/admin/san-pham" />
+        <StatCard icon={TrendingUp} label="Doanh thu tháng" value={revenueData.length ? formatVnd(revenueData.reduce((s, d) => s + (d.revenue ?? 0), 0)) : '—'}
+          sub="Tổng từ biểu đồ doanh thu" color="green" to="/admin/bao-cao" />
+        <StatCard icon={ShoppingBag} label="Tổng đơn hàng" value={orderStatus.length ? orderStatus.reduce((s, d) => s + (d.count ?? 0), 0) : '—'}
+          sub={`Trạng thái: ${orderStatus.length} loại`} color="blue" to="/admin/don-hang" />
+        <StatCard icon={Package} label="Top SP Bán Chạy" value={topProducts.length || '—'}
+          sub="Sản phẩm nổi bật" color="red" to="/admin/san-pham" />
+        <StatCard icon={Users} label="Hoàn thành" value={orderStatus.find(s => s.status === 'Completed')?.count ?? '—'}
+          sub="Đơn đã giao thành công" color="amber" to="/admin/don-hang" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -74,7 +86,7 @@ export default function AdminDashboard() {
             <h2 className="font-semibold text-gray-900">Top 5 hoa bán chạy</h2>
           </div>
           <div className="p-5 space-y-4">
-            {stats?.topProducts?.map((p, idx) => (
+            {topProducts.map((p, idx) => (
               <div key={p.productId} className="flex items-center gap-3">
                 <span className="text-gray-400 font-bold w-4">{idx + 1}</span>
                 <img src={resolveImage(p.mainImageUrl || '/placeholder.png')} alt={p.productName} className="w-10 h-10 rounded-lg object-cover" />
@@ -84,7 +96,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
-            {!stats?.topProducts?.length && <p className="text-sm text-gray-400 text-center py-4">Chưa có dữ liệu thống kê</p>}
+            {!topProducts.length && <p className="text-sm text-gray-400 text-center py-4">Chưa có dữ liệu thống kê</p>}
           </div>
         </div>
 
