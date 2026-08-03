@@ -14,12 +14,9 @@ namespace Web_HoaTuoi.VectorTool
 {
     class Program
     {
-        // Định nghĩa cấu trúc Document để lưu vào MongoDB
+        // Định nghĩa cấu trúc Document đầy đủ các trường từ bảng Products lưu vào MongoDB
         public class FlowerEmbeddingDocument
         {
-            // [BsonId]
-            // [BsonRepresentation(BsonType.ObjectId)]
-            // public string Id { get; set; }
             public int ProductId { get; set; }
             public string Name { get; set; } = string.Empty;
             public string Slug { get; set; } = string.Empty;
@@ -28,8 +25,15 @@ namespace Web_HoaTuoi.VectorTool
             public decimal Price { get; set; }
             public decimal SalePrice { get; set; }
             public bool IsOnSale { get; set; }
+            public int CategoryId { get; set; }
             public string FlowerType { get; set; } = string.Empty;
             public string Color { get; set; } = string.Empty;
+            public int Stock { get; set; }
+            public bool IsActive { get; set; }
+            public int SoldCount { get; set; }
+            public string MainImageUrl { get; set; } = string.Empty;
+            public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+            public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
             public string BouquetSize { get; set; } = string.Empty;
             public string Occasion { get; set; } = string.Empty;
             public double WeightKg { get; set; }
@@ -37,8 +41,6 @@ namespace Web_HoaTuoi.VectorTool
             // Trường lưu Vector phục vụ Semantic Search
             [BsonElement("flower_vector")]
             public List<float> FlowerVector { get; set; } = new();
-
-            public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         }
 
         static async Task Main(string[] args)
@@ -67,7 +69,7 @@ namespace Web_HoaTuoi.VectorTool
                 return;
             }
 
-            // Lấy dữ liệu từ SQL Server
+            // 1. Lấy toàn bộ dữ liệu từ SQL Server
             Console.WriteLine("\n[1/4] Đang kết nối SQL Server để lấy danh sách hoa...");
             List<FlowerEmbeddingDocument> flowers = new();
 
@@ -76,7 +78,13 @@ namespace Web_HoaTuoi.VectorTool
                 using var connection = new SqlConnection(sqlConnectionString);
                 await connection.OpenAsync();
 
-                string query = "SELECT Id, Name, Slug, Description, Meaning, Price, FlowerType, Color, IsOnSale, BouquetSize, Occasion, WeightKg FROM Products";
+                // Truy vấn lấy đầy đủ 19 cột theo đúng cấu trúc bảng Products
+                string query = @"SELECT 
+                    Id, Name, Slug, Description, Meaning, Price, SalePrice, IsOnSale, 
+                    CategoryId, FlowerType, Color, Stock, IsActive, SoldCount, 
+                    MainImageUrl, CreatedAt, UpdatedAt, BouquetSize, Occasion, WeightKg 
+                    FROM Products";
+
                 using var command = new SqlCommand(query, connection);
                 using var reader = await command.ExecuteReaderAsync();
 
@@ -90,12 +98,20 @@ namespace Web_HoaTuoi.VectorTool
                         Description = reader.IsDBNull(3) ? "" : reader.GetString(3),
                         Meaning = reader.IsDBNull(4) ? "" : reader.GetString(4),
                         Price = reader.IsDBNull(5) ? 0 : reader.GetDecimal(5),
-                        FlowerType = reader.IsDBNull(6) ? "" : reader.GetString(6),
-                        Color = reader.IsDBNull(7) ? "" : reader.GetString(7),
-                        IsOnSale = !reader.IsDBNull(8) && reader.GetBoolean(8),
-                        BouquetSize = reader.IsDBNull(9) ? "" : reader.GetString(9),
-                        Occasion = reader.IsDBNull(10) ? "" : reader.GetString(10),
-                        WeightKg = reader.IsDBNull(11) ? 0 : (double)reader.GetDouble(11)
+                        SalePrice = reader.IsDBNull(6) ? 0 : reader.GetDecimal(6),
+                        IsOnSale = !reader.IsDBNull(7) && reader.GetBoolean(7),
+                        CategoryId = reader.IsDBNull(8) ? 0 : reader.GetInt32(8),
+                        FlowerType = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                        Color = reader.IsDBNull(10) ? "" : reader.GetString(10),
+                        Stock = reader.IsDBNull(11) ? 0 : reader.GetInt32(11),
+                        IsActive = !reader.IsDBNull(12) && reader.GetBoolean(12),
+                        SoldCount = reader.IsDBNull(13) ? 0 : reader.GetInt32(13),
+                        MainImageUrl = reader.IsDBNull(14) ? "" : reader.GetString(14),
+                        CreatedAt = reader.IsDBNull(15) ? DateTime.UtcNow : reader.GetDateTime(15),
+                        UpdatedAt = reader.IsDBNull(16) ? DateTime.UtcNow : reader.GetDateTime(16),
+                        BouquetSize = reader.IsDBNull(17) ? "" : reader.GetString(17),
+                        Occasion = reader.IsDBNull(18) ? "" : reader.GetString(18),
+                        WeightKg = reader.IsDBNull(19) ? 0 : Convert.ToDouble(reader.GetValue(19))
                     });
                 }
                 Console.WriteLine($"Lấy thành công {flowers.Count} sản phẩm hoa từ SQL Server.");
@@ -108,7 +124,7 @@ namespace Web_HoaTuoi.VectorTool
 
             if (flowers.Count == 0) return;
 
-            // 3. Khởi tạo kết nối MongoDB và HttpClient cho Gemini
+            // 2. Khởi tạo kết nối MongoDB và HttpClient cho Gemini
             using var httpClient = new HttpClient();
             var mongoClient = new MongoClient(mongoConnectionString);
             var database = mongoClient.GetDatabase("HoaTuoiSearchDB");
@@ -117,25 +133,24 @@ namespace Web_HoaTuoi.VectorTool
             Console.WriteLine("\n[2/4] Đang xử lý tạo Vector (Gemini) và nạp lên MongoDB Atlas...");
             int successCount = 0;
 
-            // Tạo URL cho API Gemini
             string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={geminiApiKey}";
+
             foreach (var flower in flowers)
             {
                 // Gộp thông tin tối ưu hóa ngữ nghĩa cho Embedding
                 string fullTextToEmbed = $"Tên hoa: {flower.Name}. " +
-                         $"Loại hoa: {flower.FlowerType}. " +
-                         $"Màu sắc: {flower.Color}. " +
-                         $"Kích thước: {flower.BouquetSize}. " +
-                         $"Trọng lượng: {flower.WeightKg} kg. " +
-                         $"Dịp tặng phù hợp: {flower.Occasion}. " +
-                         $"Ý nghĩa: {flower.Meaning}. " +
-                         $"Mô tả chi tiết: {flower.Description}";
+                                         $"Loại hoa: {flower.FlowerType}. " +
+                                         $"Màu sắc: {flower.Color}. " +
+                                         $"Kích thước: {flower.BouquetSize}. " +
+                                         $"Trọng lượng: {flower.WeightKg} kg. " +
+                                         $"Dịp tặng phù hợp: {flower.Occasion}. " +
+                                         $"Ý nghĩa: {flower.Meaning}. " +
+                                         $"Mô tả chi tiết: {flower.Description}";
 
                 try
                 {
                     Console.Write($" -> Đang xử lý: {flower.Name}... ");
 
-                    // Request body chuẩn chỉnh theo tài liệu API của Google
                     var requestBody = new
                     {
                         model = "models/gemini-embedding-001",
@@ -150,12 +165,10 @@ namespace Web_HoaTuoi.VectorTool
                     if (!response.IsSuccessStatusCode)
                     {
                         string errorResponse = await response.Content.ReadAsStringAsync();
-                        // In thêm StatusCode để bắt bệnh
                         Console.WriteLine($"Lỗi API Gemini (Status: {response.StatusCode}): {errorResponse}");
                         continue;
                     }
 
-                    // Parse kết quả trả về (Cấu trúc: embedding.values)
                     using var jsonDoc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
                     var valuesElement = jsonDoc.RootElement
                         .GetProperty("embedding")
@@ -176,7 +189,7 @@ namespace Web_HoaTuoi.VectorTool
                     Console.WriteLine("Đã nạp xong!");
                     successCount++;
 
-                    // Giữ delay 2 giây
+                    // Giữ delay 2 giây để hạn chế dính Rate Limit API Gemini
                     await Task.Delay(2000);
                 }
                 catch (Exception ex)

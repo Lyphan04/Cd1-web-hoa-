@@ -5,3 +5,6 @@ node_modules/
 .env
 dist/
 build/
+.env.local
+.vscode/
+.env.*

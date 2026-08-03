@@ -11,19 +11,29 @@ using Web_HoaTuoi.Server.Data;
 using Web_HoaTuoi.Server.Models;
 using Web_HoaTuoi.Server.Services;
 
+// Nạp ưu tiên file .env.local
+try
+{
+    DotNetEnv.Env.Load(".env.local");
+}
+catch
+{
+    DotNetEnv.Env.Load();
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
-// â”€â”€ Database â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Database ──────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// â”€â”€ Redis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Redis ─────────────────────────────────────────────────
 var redisConn = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
 builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect(redisConn + ",abortConnect=false"));
 builder.Services.AddScoped<IInventoryService, RedisInventoryService>();
 
-// â”€â”€ Rate Limiting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Rate Limiting ─────────────────────────────────────────
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("OrderLimit", opt =>
@@ -36,7 +46,7 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = 429;
 });
 
-// â”€â”€ Identity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Identity ──────────────────────────────────────────────
 builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = false;
@@ -50,51 +60,51 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// â”€â”€ JWT Authentication â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── JWT Authentication ────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-  options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-    ValidateIssuer = true,
-    ValidateAudience = true,
-   ValidateLifetime = true,
-     ValidateIssuerSigningKey = true,
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
-   ValidAudience = builder.Configuration["Jwt:Audience"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
     };
 });
 
-// â”€â”€ CORS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CORS ──────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowViteClient", policy =>
-      policy
-    .WithOrigins(
- "https://localhost:61348", // SpaProxy (Vite HTTPS)
-  "http://localhost:61348",
-         "http://localhost:5173",   // Vite fallback
-    "https://localhost:5173"
+        policy
+            .WithOrigins(
+                "https://localhost:61348",
+                "http://localhost:61348",
+                "http://localhost:5173",
+                "https://localhost:5173"
             )
- .AllowAnyHeader()
-    .AllowAnyMethod()
- .AllowCredentials());
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
 
-// â”€â”€ Controllers + Swagger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Controllers + Services + Swagger ─────────────────────
+builder.Services.AddHttpClient(); // Đăng ký IHttpClientFactory
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // camelCase JSON Ä‘á»ƒ khá»›p vá»›i TypeScript interfaces
         options.JsonSerializerOptions.PropertyNamingPolicy =
-    System.Text.Json.JsonNamingPolicy.CamelCase;
-  // Serialize enum thÃ nh string thay vÃ¬ int
+            System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
@@ -102,16 +112,15 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
- {
-        Title = "Web Hoa TÆ°Æ¡i API",
+    {
+        Title = "Web Hoa Tươi API",
         Version = "v1",
-        Description = "API cho ná»n táº£ng thÆ°Æ¡ng máº¡i Ä‘iá»‡n tá»­ hoa tÆ°Æ¡i"
+        Description = "API cho nền tảng thương mại điện tử hoa tươi"
     });
 
-    // ThÃªm nÃºt Authorize trong Swagger UI
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization: nháº­p 'Bearer {token}'",
+        Description = "JWT Authorization: nhập 'Bearer {token}'",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -122,12 +131,12 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-           Reference = new OpenApiReference
-      {
-   Type = ReferenceType.SecurityScheme,
-      Id = "Bearer"
-}
-        },
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
             Array.Empty<string>()
         }
     });
@@ -143,7 +152,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
- c.SwaggerEndpoint("/swagger/v1/swagger.json", "Web Hoa TÆ°Æ¡i API v1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Web Hoa Tươi API v1");
         c.RoutePrefix = "swagger";
     });
 }
@@ -157,7 +166,7 @@ app.UseRateLimiter();
 app.MapControllers();
 app.MapFallbackToFile("/index.html");
 
-// â”€â”€ Auto migrate + Seed khi khá»Ÿi Ä‘á»™ng â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Auto migrate + Seed khi khởi động ─────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -167,7 +176,6 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
     await DbSeeder.SeedAsync(db, userManager, roleManager);
 
-    // Äá»“ng bá»™ stock SQL â†’ Redis
     var inventory = scope.ServiceProvider.GetRequiredService<IInventoryService>();
     await inventory.SyncFromDatabaseAsync(db);
 }

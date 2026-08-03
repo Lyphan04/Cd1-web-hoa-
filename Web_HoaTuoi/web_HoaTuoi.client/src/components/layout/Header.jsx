@@ -20,6 +20,7 @@ import toast from "react-hot-toast";
 const navLinks = [
     { to: "/", label: "Trang chủ" },
     { to: "/gioi-thieu", label: "Giới thiệu" },
+    { to: "/semantic-search", label: "Tìm kiếm tương đồng" },
     { to: "/hoa", label: "Bộ sưu tập", hasDropdown: false },
     { to: "/chinh-sach", label: "Chính sách" },
     { to: "/blog", label: "Tin tức" },
@@ -214,7 +215,7 @@ export default function Header() {
                                     </div>
 
                                     <div className="p-2 border-t border-gray-50">
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 logout();
                                                 toast.success("Đã đăng xuất thành công");

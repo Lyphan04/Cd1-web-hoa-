@@ -6,6 +6,7 @@ import AdminLayout from './components/layout/AdminLayout'
 import ScrollToTop from './components/common/ScrollToTop'
 
 import HomePage from './pages/HomePage'
+import SemanticSearch from './pages/SemanticSearch'
 import ProductListPage from './pages/ProductListPage'
 import ProductDetailPage from './pages/ProductDetailPage'
 import CartPage from './pages/CartPage'
@@ -49,6 +50,8 @@ export default function App() {
                     <Route element={<CustomerLayout />}>
 
                         <Route path="/" element={<HomePage />} />
+
+                        <Route path="/semantic-search" element={<SemanticSearch />} />
 
                         <Route path="/hoa" element={<ProductListPage />} />
 
