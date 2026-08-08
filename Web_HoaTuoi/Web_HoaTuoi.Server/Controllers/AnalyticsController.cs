@@ -29,7 +29,7 @@ namespace Web_HoaTuoi.Server.Controllers
                 var sql = @"
                     SELECT CreatedAt, FinalAmount
                     FROM Orders
-                    WHERE Status = 'Completed' AND CreatedAt >= @start";
+                    WHERE (Status = 3 OR CAST(Status AS NVARCHAR(50)) = 'Completed') AND CreatedAt >= @start";
                 
                 var orders = connection.Query<(DateTime CreatedAt, decimal FinalAmount)>(sql, new { start }).ToList();
                 var grouped = orders.GroupBy(o => o.CreatedAt.Date)
@@ -53,7 +53,7 @@ namespace Web_HoaTuoi.Server.Controllers
                 var sql = @"
                     SELECT CreatedAt, FinalAmount
                     FROM Orders
-                    WHERE Status = 'Completed' AND CreatedAt >= @start";
+                    WHERE (Status = 3 OR CAST(Status AS NVARCHAR(50)) = 'Completed') AND CreatedAt >= @start";
                 
                 var orders = connection.Query<(DateTime CreatedAt, decimal FinalAmount)>(sql, new { start }).ToList();
                 var grouped = orders.GroupBy(o => o.CreatedAt.Date)
@@ -76,7 +76,7 @@ namespace Web_HoaTuoi.Server.Controllers
                 var sql = @"
                     SELECT CreatedAt, FinalAmount
                     FROM Orders
-                    WHERE Status = 'Completed' AND CreatedAt >= @start";
+                    WHERE (Status = 3 OR CAST(Status AS NVARCHAR(50)) = 'Completed') AND CreatedAt >= @start";
                 
                 var orders = connection.Query<(DateTime CreatedAt, decimal FinalAmount)>(sql, new { start }).ToList();
                 var grouped = orders.GroupBy(o => o.CreatedAt.Month)
@@ -104,9 +104,9 @@ namespace Web_HoaTuoi.Server.Controllers
                     od.ProductId,
                     SUM(od.Quantity) AS TongSoLuongBan,
                     SUM(od.Quantity * od.UnitPrice) AS TongDoanhThu
-                FROM OrderDetails od
+                FROM OrderItems od
                 JOIN Orders o ON od.OrderId = o.Id
-                WHERE o.Status = 'Completed'
+                WHERE (o.Status = 3 OR CAST(o.Status AS NVARCHAR(50)) = 'Completed')
                 GROUP BY od.ProductId
                 ORDER BY TongSoLuongBan DESC;";
             

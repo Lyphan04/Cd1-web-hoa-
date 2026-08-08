@@ -192,7 +192,7 @@ public class OrdersController : ControllerBase
                 o.OrderCode,
                 o.Status.ToString(),
                 o.FinalAmount,
-                o.IsPaid,
+                (bool?)o.IsPaid ?? false,
                 o.CreatedAt,
                 o.Items.Select(i => new CartItemDto(
                     i.ProductId,
@@ -276,7 +276,7 @@ public class OrdersController : ControllerBase
                 o.ReceiverName,
                 o.ReceiverPhone,
                 o.FinalAmount,
-                o.IsPaid,
+                IsPaid = (bool?)o.IsPaid ?? false,
                 o.CreatedAt
             })
             .ToListAsync();

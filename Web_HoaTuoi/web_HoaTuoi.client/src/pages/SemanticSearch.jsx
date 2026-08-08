@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { resolveImage } from "../utils/imageResolver";
+import apiClient from "../api/client";
 
 export default function SemanticSearch() {
   const [query, setQuery] = useState(
@@ -29,8 +30,9 @@ export default function SemanticSearch() {
   }, [query, results, aiResponse, hasSearched]);
 
   const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+    e?.preventDefault();
+    const cleanedQuery = query.replace(/^["'\s]+|["'\s]+$/g, "").trim();
+    if (!cleanedQuery) return;
 
     setLoading(true);
     setErrorMessage("");
@@ -38,24 +40,17 @@ export default function SemanticSearch() {
     setAiResponse("");
 
     try {
-      const response = await fetch("/api/Search/semantic-search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+      const res = await apiClient.post("/Search/semantic-search", {
+        query: cleanedQuery,
       });
 
-      if (!response.ok) {
-        throw new Error(
-          `Lỗi Server (${response.status}): Vui lòng kiểm tra lại kết nối Backend.`
-        );
-      }
-
-      const data = await response.json();
+      const data = res.data;
       setResults(data.data || []);
       setAiResponse(data.aiResponse || "");
     } catch (error) {
       console.error("Lỗi khi tìm kiếm:", error);
-      setErrorMessage(error.message);
+      const msg = error.response?.data?.message || error.message || "Không thể kết nối đến máy chủ Backend.";
+      setErrorMessage(msg);
     } finally {
       setLoading(false);
     }
