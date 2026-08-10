@@ -56,6 +56,18 @@ public static class DbSeeder
         }
 
         // ── 4. Categories & Products ──────────────────────────────
+        // Cập nhật tất cả các sản phẩm có giá < 2000đ thành 2000đ theo yêu cầu
+        var cheapProducts = await db.Products.Where(p => p.Price < 2000 || (p.SalePrice.HasValue && p.SalePrice < 2000)).ToListAsync();
+        if (cheapProducts.Any())
+        {
+            foreach (var p in cheapProducts)
+            {
+                p.Price = 2000;
+                if (p.SalePrice.HasValue) p.SalePrice = 2000;
+            }
+            await db.SaveChangesAsync();
+        }
+
         // Chỉ seed nếu chưa có sản phẩm nào
         if (await db.Products.AnyAsync()) 
         {

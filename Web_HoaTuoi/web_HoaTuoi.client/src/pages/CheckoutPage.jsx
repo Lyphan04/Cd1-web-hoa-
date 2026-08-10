@@ -1,5 +1,5 @@
 // src/pages/CheckoutPage.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
@@ -8,107 +8,291 @@ import { resolveImage } from '../utils/imageResolver';
 import apiClient from '../api/client';
 import { addressApi } from '../api/addresses';
 import toast from 'react-hot-toast';
-import { MapPin, QrCode, Banknote, X, CheckCircle, User, Phone, MessageSquare, Calendar, ChevronRight, ShoppingBag, CreditCard, Truck, ArrowLeft } from 'lucide-react';
+import { MapPin, QrCode, Banknote, X, CheckCircle, User, Phone, MessageSquare, Calendar, ChevronRight, ShoppingBag, CreditCard, Truck, ArrowLeft, Loader2 } from 'lucide-react';
 
 // ============================================================
-// Modal QR thanh toán - Gọn nhẹ, chuyên nghiệp
+// Modal QR thanh toán - Tự động xác nhận & Chuyên nghiệp
 // ============================================================
-function QrPaymentModal({ qrInfo, onClose, onConfirm }) {
-  const [countdown, setCountdown] = useState(300);
+function QrPaymentModal({ qrInfo, onClose, navigate }) {
+  const [countdown, setCountdown] = useState(60); // 1 phút
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [copiedField, setCopiedField] = useState(null);
+  const [redirectCount, setRedirectCount] = useState(5);
+  const canvasRef = useRef(null);
 
-  const qrImageUrl = `https://img.vietqr.io/image/${qrInfo.bankId}-${qrInfo.accountNumber}-qr_only.png?amount=${qrInfo.amount}&addInfo=${encodeURIComponent(qrInfo.description)}&accountName=${encodeURIComponent(qrInfo.accountName)}`;
+  const displayAmount = Math.max(2000, qrInfo.amount || 0);
+  const qrImageUrl = `https://img.vietqr.io/image/${qrInfo.bankId}-${qrInfo.accountNumber}-qr_only.png?amount=${displayAmount}&addInfo=${encodeURIComponent(qrInfo.description)}&accountName=${encodeURIComponent(qrInfo.accountName)}`;
 
+  // Đếm ngược 10 phút
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown(c => { if (c <= 1) { clearInterval(timer); return 0; } return c - 1; });
+      setCountdown(c => {
+        if (c <= 1) { clearInterval(timer); return 0; }
+        return c - 1;
+      });
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
+  // Polling tự động check trạng thái thanh toán từ Server (khi có Webhook hoặc Admin duyệt)
+  useEffect(() => {
+    if (isSuccess || !qrInfo.orderId) return;
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await apiClient.get(`/orders/${qrInfo.orderId}`);
+        // Kiểm tra cả camelCase và PascalCase
+        if (res.data && (res.data.isPaid === true || res.data.IsPaid === true)) {
+          setIsSuccess(true);
+          toast.success('🎉 Hệ thống đã nhận được thanh toán!');
+          clearInterval(pollInterval);
+        }
+      } catch (e) { /* bỏ qua lỗi tạm thời */ }
+    }, 3000);
+    return () => clearInterval(pollInterval);
+  }, [qrInfo.orderId, isSuccess]);
+
+  // Confetti animation khi thành công
+  useEffect(() => {
+    if (!isSuccess) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const ctx = canvas.getContext('2d');
+    const COLORS = ['#f59e0b','#10b981','#3b82f6','#ec4899','#8b5cf6','#ef4444','#06b6d4'];
+    const particles = Array.from({ length: 90 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      r: Math.random() * 7 + 3,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      speed: Math.random() * 3 + 1.5,
+      drift: (Math.random() - 0.5) * 2,
+      rotate: Math.random() * 360,
+      rotateSpeed: (Math.random() - 0.5) * 10,
+    }));
+    let animId;
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotate * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = 0.85;
+        ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 1.6);
+        ctx.restore();
+        p.y += p.speed;
+        p.x += p.drift;
+        p.rotate += p.rotateSpeed;
+        if (p.y > canvas.height) { p.y = -10; p.x = Math.random() * canvas.width; }
+      });
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    const stop = setTimeout(() => cancelAnimationFrame(animId), 4500);
+    return () => { cancelAnimationFrame(animId); clearTimeout(stop); };
+  }, [isSuccess]);
+
+  // Tự động redirect sau 5 giây khi thanh toán thành công
+  useEffect(() => {
+    if (!isSuccess) return;
+    if (redirectCount <= 0) { navigate('/don-hang'); return; }
+    const t = setTimeout(() => setRedirectCount(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [isSuccess, redirectCount, navigate]);
+
+  const copyToClipboard = (text, field) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    toast.success(`Đã sao chép ${field}`);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+
   const minutes = String(Math.floor(countdown / 60)).padStart(2, '0');
   const seconds = String(countdown % 60).padStart(2, '0');
-  const isUrgent = countdown <= 60;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-         style={{ animation: 'fadeIn 0.2s ease' }}>
-      <div style={{ width:'100%', maxWidth:'380px', borderRadius:'28px', overflow:'hidden', boxShadow:'0 25px 70px rgba(0,0,0,0.4)', background:'white', animation:'scaleIn 0.25s ease' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+      {isSuccess ? (
+        /* ===== MÀN HÌNH THANH TOÁN THÀNH CÔNG 🎉 ===== */
+        <div
+          className="relative bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-emerald-100 overflow-hidden"
+          style={{ animation: 'scaleUp 0.4s cubic-bezier(0.34,1.56,0.64,1) both' }}
+        >
+          {/* Confetti canvas */}
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }} />
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-b from-emerald-50/70 via-white/80 to-white pointer-events-none" style={{ zIndex: 1 }} />
 
-        {/* Header xanh lá */}
-        <div style={{ background:'linear-gradient(135deg, #00874a 0%, #00b35a 100%)', padding:'16px 20px' }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            {/* Logo VCB */}
-            <div style={{ background:'white', borderRadius:'8px', padding:'4px 10px', display:'flex', alignItems:'center', gap:'6px' }}>
-              <div style={{ width:'18px', height:'18px', background:'#006933', borderRadius:'4px', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <span style={{ color:'white', fontSize:'9px', fontWeight:'900' }}>V</span>
+          <div className="relative" style={{ zIndex: 2 }}>
+            {/* Animated icon */}
+            <div className="relative w-24 h-24 mx-auto mb-4">
+              <div className="absolute inset-0 bg-emerald-200 rounded-full animate-ping opacity-30" />
+              <div className="absolute inset-2 bg-emerald-100 rounded-full animate-ping opacity-40" style={{ animationDelay: '0.3s' }} />
+              <div className="relative w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 text-white rounded-full flex items-center justify-center shadow-xl shadow-emerald-500/40">
+                <CheckCircle size={52} strokeWidth={2} />
               </div>
-              <span style={{ color:'#006933', fontSize:'11px', fontWeight:'900' }}>Vietcombank</span>
             </div>
-            {/* Countdown + Close */}
-            <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-              <span style={{ color: isUrgent ? '#ffcccc' : 'rgba(255,255,255,0.9)', fontSize:'15px', fontWeight:'700', fontFamily:'monospace' }}>
-                {minutes}:{seconds}
+
+            <p className="text-3xl mb-2">🎉</p>
+            <h2 className="text-2xl font-black text-gray-900 mb-1">Thanh Toán Thành Công!</h2>
+            <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+              Đã nhận khoản thanh toán{' '}
+              <strong className="text-emerald-700">{formatVnd(displayAmount)}</strong> cho đơn{' '}
+              <span className="bg-emerald-50 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded border border-emerald-200">
+                {qrInfo.orderCode}
               </span>
-              <button onClick={onClose} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:'28px', height:'28px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'white' }}>
-                <X size={14} />
-              </button>
+            </p>
+
+            {/* Info card */}
+            <div className="bg-gray-50 rounded-2xl p-4 mb-5 text-left text-xs space-y-2 border border-gray-100">
+              {[
+                { label: 'Mã đơn hàng', value: qrInfo.orderCode },
+                { label: 'Ngân hàng nhận', value: 'Vietcombank' },
+                { label: 'Chủ tài khoản', value: 'PHAN THI KIM LY' },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between">
+                  <span className="text-gray-500">{label}:</span>
+                  <span className="font-semibold text-gray-800">{value}</span>
+                </div>
+              ))}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Trạng thái:</span>
+                <span className="font-bold text-emerald-600 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                  Đã thanh toán · Đang xử lý
+                </span>
+              </div>
             </div>
+
+            {/* Countdown bar */}
+            <div className="mb-4">
+              <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-1000"
+                  style={{ width: `${(redirectCount / 5) * 100}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                Tự động chuyển đến đơn hàng sau <strong>{redirectCount}s</strong>...
+              </p>
+            </div>
+
+            <button
+              onClick={() => navigate('/don-hang')}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              <CheckCircle size={18} />
+              Xem đơn hàng ngay
+            </button>
           </div>
         </div>
+      ) : (
+        /* ===== MÀN HÌNH QUÉT MÃ QR VIETQR ===== */
+        <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl max-h-[92vh] overflow-y-auto border border-gray-100 relative">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
+                <QrCode size={22} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 text-base">Quét mã thanh toán VietQR</h3>
+                <p className="text-xs text-gray-500">Dùng App Ngân hàng hoặc Ví điện tử để quét</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+              <X size={20} />
+            </button>
+          </div>
 
-        {/* Progress bar */}
-        <div style={{ height:'2px', background:'#e0ede7' }}>
-          <div style={{ height:'100%', width:`${(countdown/300)*100}%`, background: isUrgent ? '#ff5252' : '#00b35a', transition:'width 1s linear, background 0.5s' }} />
-        </div>
-
-        {/* Body */}
-        <div style={{ padding:'24px 24px 20px', textAlign:'center' }}>
-          <p style={{ fontSize:'11px', color:'#bbb', fontWeight:'700', letterSpacing:'2px', textTransform:'uppercase', margin:'0 0 16px' }}>
-            Mở app ngân hàng · Quét QR
-          </p>
+          {/* Banner hướng dẫn */}
+          <div className="bg-amber-50/80 border border-amber-200/60 rounded-xl p-3 mb-4 text-[11px] text-amber-900 leading-relaxed flex items-start gap-2">
+            <span className="text-base leading-none">📲</span>
+            <div>
+              <strong>Hướng dẫn:</strong> Mở App ngân hàng, quét mã QR bên dưới để chuyển khoản đúng nội dung. Hệ thống sẽ <strong>tự động xác nhận</strong> và chuyển sang màn hình thành công.
+            </div>
+          </div>
 
           {/* QR Image */}
-          <div style={{ display:'inline-flex', padding:'12px', border:'2px solid #e0f0e8', borderRadius:'20px', background:'#fff', boxShadow:'0 4px 25px rgba(0,140,70,0.1)', marginBottom:'8px' }}>
-            <img
-              src={qrImageUrl}
-              alt="QR thanh toán"
-              style={{ width:'320px', height:'320px', objectFit:'contain', borderRadius:'8px', display:'block' }}
-              onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
-            />
-            <div style={{ display:'none', width:'320px', height:'320px', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:'12px' }}>
-              <QrCode size={80} style={{ color:'#00a550' }} />
-              <span style={{ fontSize:'12px', color:'#999', textAlign:'center' }}>Không tải được QR.<br/>Vui lòng thử lại.</span>
+          <div className="bg-gradient-to-b from-amber-50/40 to-orange-50/20 p-4 rounded-2xl border border-amber-100/80 text-center mb-4 flex flex-col items-center">
+            <div className="bg-white p-3 rounded-xl shadow-md border border-gray-100 max-w-[220px] mb-2.5">
+              <img src={qrImageUrl} alt="VietQR Thanh Toán" className="w-full h-auto rounded-lg" />
+            </div>
+            <div className="flex items-center justify-center gap-2 text-xs font-semibold text-gray-600 bg-white/90 backdrop-blur-sm px-4 py-1 rounded-full border border-gray-200 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+              Thời gian còn lại: {minutes}:{seconds}
             </div>
           </div>
-        </div>
 
-        {/* Buttons */}
-        <div style={{ padding:'0 16px 18px', display:'grid', gridTemplateColumns:'1fr 1.7fr', gap:'8px' }}>
-          <button onClick={onClose}
-            style={{ padding:'10px', borderRadius:'12px', border:'1.5px solid #e8e8e8', background:'white', color:'#666', fontSize:'12px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'4px' }}
-            onMouseEnter={e => e.currentTarget.style.background='#f7f7f7'}
-            onMouseLeave={e => e.currentTarget.style.background='white'}>
-            <X size={12} /> Đóng
-          </button>
-          <button onClick={onConfirm}
-            style={{ padding:'10px', borderRadius:'12px', border:'none', background:'linear-gradient(135deg,#00b35a,#006933)', color:'white', fontSize:'12px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px', boxShadow:'0 4px 14px rgba(0,160,80,0.3)', transition:'transform 0.15s' }}
-            onMouseEnter={e => e.currentTarget.style.transform='translateY(-1px)'}
-            onMouseLeave={e => e.currentTarget.style.transform='translateY(0)'}>
-            <CheckCircle size={13} /> Đã thanh toán
+          {/* Bank Details */}
+          <div className="bg-gray-50 rounded-2xl p-3.5 mb-3 text-xs space-y-2 border border-gray-200/80">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500 font-medium">Ngân hàng:</span>
+              <span className="font-bold text-gray-800">Vietcombank (VCB)</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500 font-medium">Số tài khoản:</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-bold text-amber-900 bg-amber-100/60 px-2 py-0.5 rounded">{qrInfo.accountNumber}</span>
+                <button onClick={() => copyToClipboard(qrInfo.accountNumber, 'Số tài khoản')} className="text-[11px] text-amber-700 hover:underline font-semibold">
+                  {copiedField === 'Số tài khoản' ? '✓ Đã chép' : 'Sao chép'}
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500 font-medium">Chủ tài khoản:</span>
+              <span className="font-bold text-gray-800">{qrInfo.accountName}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500 font-medium">Số tiền:</span>
+              <span className="font-bold text-emerald-700 text-sm">{formatVnd(displayAmount)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-1 border-t border-gray-200">
+              <span className="text-gray-500 font-medium">Nội dung CK:</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded">{qrInfo.description}</span>
+                <button onClick={() => copyToClipboard(qrInfo.description, 'Nội dung')} className="text-[11px] text-amber-700 hover:underline font-semibold">
+                  {copiedField === 'Nội dung' ? '✓ Đã chép' : 'Sao chép'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Auto polling status */}
+          <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl px-4 py-3 mb-3">
+            <div className="flex items-center gap-2">
+              <Loader2 size={14} className="text-blue-500 animate-spin" />
+              <div>
+                <p className="text-[11px] font-bold text-blue-800">Đang chờ thanh toán...</p>
+                <p className="text-[10px] text-blue-500">Hệ thống tự động kiểm tra mỗi 3 giây</p>
+              </div>
+            </div>
+            <div className="flex gap-0.5">
+              {[0,1,2].map(i => (
+                <span
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-blue-400"
+                  style={{ animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Chỉ còn nút Để sau */}
+          <button
+            onClick={onClose}
+            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-500 font-medium py-2.5 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
+          >
+            <X size={13} />
+            Đóng · xem đơn hàng sau
           </button>
         </div>
-      </div>
-
-      <style>{`
-        @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
-        @keyframes scaleIn { from { opacity:0; transform:scale(0.9) translateY(14px) } to { opacity:1; transform:scale(1) translateY(0) } }
-      `}</style>
+      )}
     </div>
   );
 }
-
-
-
 
 
 // ============================================================
@@ -230,13 +414,7 @@ export default function CheckoutPage() {
 
   function handleQrClose() {
     setQrInfo(null);
-    navigate('/');
-  }
-
-  function handleQrConfirm() {
-    toast.success('Cảm ơn bạn! Đơn hàng sẽ được xác nhận khi nhận được thanh toán.');
-    setQrInfo(null);
-    navigate('/');
+    navigate('/don-hang');
   }
 
   return (
@@ -246,7 +424,7 @@ export default function CheckoutPage() {
         <QrPaymentModal
           qrInfo={qrInfo}
           onClose={handleQrClose}
-          onConfirm={handleQrConfirm}
+          navigate={navigate}
         />
       )}
 
@@ -449,23 +627,30 @@ export default function CheckoutPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div
                         onClick={() => setPaymentMethod('QrCode')}
-                        className={`group relative p-2 border border-2 rounded-xl cursor-pointer transition-all duration-200 ${paymentMethod === 'QrCode' ? 'border-amber-400 bg-amber-50/30' : 'border-gray-50 bg-gray-50/50 hover:border-amber-100'}`}
+                        className={`group relative p-3 border-2 rounded-xl cursor-pointer transition-all duration-200 flex items-center gap-2.5 ${paymentMethod === 'QrCode' ? 'border-amber-400 bg-amber-50/40' : 'border-gray-100 bg-gray-50/50 hover:border-amber-200'}`}
                       >
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center mb-1 transition-all ${paymentMethod === 'QrCode' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30' : 'bg-white text-gray-400 border border-gray-100'}`}>
-                          <QrCode size={14} />
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${paymentMethod === 'QrCode' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30' : 'bg-white text-gray-400 border border-gray-100'}`}>
+                          <QrCode size={16} />
                         </div>
-                        <p className={`text-[10px] font-bold ${paymentMethod === 'QrCode' ? 'text-amber-800' : 'text-gray-600'}`}>Quét QR</p>
-                        {paymentMethod === 'QrCode' && <CheckCircle size={10} className="absolute top-1 right-1 text-amber-600" fill="#fffbeb" />}
+                        <div>
+                          <p className={`text-[11px] font-bold ${paymentMethod === 'QrCode' ? 'text-amber-800' : 'text-gray-700'}`}>VietQR</p>
+                          <p className="text-[9px] text-gray-400">Chuyển khoản</p>
+                        </div>
+                        {paymentMethod === 'QrCode' && <CheckCircle size={12} className="absolute top-1.5 right-1.5 text-amber-500" fill="#fffbeb" />}
                       </div>
+
                       <div
                         onClick={() => setPaymentMethod('COD')}
-                        className={`group relative p-2 border border-2 rounded-xl cursor-pointer transition-all duration-200 ${paymentMethod === 'COD' ? 'border-amber-400 bg-amber-50/30' : 'border-gray-50 bg-gray-50/50 hover:border-amber-100'}`}
+                        className={`group relative p-3 border-2 rounded-xl cursor-pointer transition-all duration-200 flex items-center gap-2.5 ${paymentMethod === 'COD' ? 'border-amber-400 bg-amber-50/40' : 'border-gray-100 bg-gray-50/50 hover:border-amber-200'}`}
                       >
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center mb-1 transition-all ${paymentMethod === 'COD' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30' : 'bg-white text-gray-400 border border-gray-100'}`}>
-                          <Banknote size={14} />
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${paymentMethod === 'COD' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30' : 'bg-white text-gray-400 border border-gray-100'}`}>
+                          <Banknote size={16} />
                         </div>
-                        <p className={`text-[10px] font-bold ${paymentMethod === 'COD' ? 'text-amber-800' : 'text-gray-600'}`}>Tiền mặt</p>
-                        {paymentMethod === 'COD' && <CheckCircle size={10} className="absolute top-1 right-1 text-amber-600" fill="#fffbeb" />}
+                        <div>
+                          <p className={`text-[11px] font-bold ${paymentMethod === 'COD' ? 'text-amber-800' : 'text-gray-700'}`}>Tiền mặt</p>
+                          <p className="text-[9px] text-gray-400">Thanh toán khi nhận</p>
+                        </div>
+                        {paymentMethod === 'COD' && <CheckCircle size={12} className="absolute top-1.5 right-1.5 text-amber-500" fill="#fffbeb" />}
                       </div>
                     </div>
                   </div>

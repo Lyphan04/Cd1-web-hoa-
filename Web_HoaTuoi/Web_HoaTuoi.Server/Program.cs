@@ -99,6 +99,8 @@ builder.Services.AddCors(options =>
 
 // ── Controllers + Services + Swagger ─────────────────────
 builder.Services.AddHttpClient(); // Đăng ký IHttpClientFactory
+builder.Services.AddScoped<IVnPayService, VnPayService>();
+builder.Services.AddScoped<IZaloPayService, ZaloPayService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

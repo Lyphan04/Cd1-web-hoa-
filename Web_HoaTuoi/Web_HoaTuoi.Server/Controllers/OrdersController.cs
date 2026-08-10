@@ -21,16 +21,22 @@ public class OrdersController : ControllerBase
 
     private readonly AppDbContext _db;
     private readonly IInventoryService _inventory;
+    private readonly IZaloPayService _zaloPay;
     private readonly ILogger<OrdersController> _logger;
+    private readonly IConfiguration _config;
 
     public OrdersController(
         AppDbContext db,
         IInventoryService inventory,
-        ILogger<OrdersController> logger)
+        IZaloPayService zaloPay,
+        ILogger<OrdersController> logger,
+        IConfiguration config)
     {
         _db = db;
         _inventory = inventory;
+        _zaloPay = zaloPay;
         _logger = logger;
+        _config = config;
     }
 
     // POST /api/orders
@@ -142,25 +148,45 @@ public class OrdersController : ControllerBase
                     i.UnitPrice,
                     i.Quantity)));
 
-            // ===== Trả về thông tin QR nếu chọn thanh toán QR =====
+            // ===== Trả về thông tin QR nếu chọn thanh toán QR hoặc ZaloPay =====
             object? qrInfo = null;
+            object? zaloPayInfo = null;
+
             if (req.PaymentMethod == "QrCode")
             {
+                var qrAmount = Math.Max(2000, (long)order.FinalAmount);
                 qrInfo = new
                 {
                     bankId = QrBankId,
                     accountNumber = QrAccountNumber,
                     accountName = QrAccountName,
-                    amount = (long)order.FinalAmount,
+                    amount = qrAmount,
                     description = $"DH {order.OrderCode}",
-                    orderCode = order.OrderCode
+                    orderCode = order.OrderCode,
+                    orderId = order.Id
+                };
+            }
+            else if (req.PaymentMethod == "ZaloPay")
+            {
+                var zpResult = await _zaloPay.CreateOrderAsync(order.OrderCode, order.FinalAmount, $"Thanh toán đơn hàng {order.OrderCode}");
+                zaloPayInfo = new
+                {
+                    success = zpResult.Success,
+                    orderUrl = zpResult.OrderUrl,
+                    qrCode = zpResult.QrCode,
+                    appTransId = zpResult.AppTransId,
+                    message = zpResult.Message,
+                    orderCode = order.OrderCode,
+                    orderId = order.Id,
+                    amount = (long)order.FinalAmount
                 };
             }
 
             return Ok(new
             {
                 orderSummary = summary,
-                qrInfo
+                qrInfo,
+                zaloPayInfo
             });
         }
         catch (Exception ex)
@@ -345,6 +371,144 @@ public class OrdersController : ControllerBase
 
         return NoContent();
     }
+
+    // PUT /api/orders/{id}/confirm-paid
+    [HttpPut("{id:int}/confirm-paid")]
+    [Authorize]
+    public async Task<IActionResult> ConfirmPaid(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var order = await _db.Orders.FirstOrDefaultAsync(o => o.Id == id && o.UserId == userId);
+        if (order is null) return NotFound();
+
+        order.IsPaid = true;
+        if (order.Status == OrderStatus.Pending)
+        {
+            order.Status = OrderStatus.Processing;
+        }
+        await _db.SaveChangesAsync();
+
+        return Ok(new { success = true, message = "Xác nhận đã thanh toán thành công!" });
+    }
+
+    // POST /api/orders/webhook/casso — Casso.vn tự động gọi khi có tiền vào tài khoản VCB
+    [HttpPost("webhook/casso")]
+    [AllowAnonymous]
+    public async Task<IActionResult> CassoWebhook(
+        [FromBody] CassoWebhookRequest req,
+        [FromHeader(Name = "secure-token")] string? secureToken)
+    {
+        // Xác thực webhook bằng Secure Token (cấu hình trên Casso dashboard)
+        var configToken = _config["Casso:WebhookToken"];
+
+        if (!string.IsNullOrEmpty(configToken) &&
+            !string.Equals(secureToken, configToken, StringComparison.Ordinal))
+        {
+            _logger.LogWarning("Casso Webhook: Token không hợp lệ");
+            return Unauthorized(new { message = "Token không hợp lệ" });
+        }
+
+        if (req.Data == null || req.Data.Count == 0)
+            return Ok(new { success = true, message = "Không có giao dịch nào." });
+
+        var confirmedCount = 0;
+
+        foreach (var txn in req.Data)
+        {
+            // Chỉ xử lý giao dịch tiền VÀO (amount > 0)
+            if (txn.Amount <= 0) continue;
+
+            var description = txn.Description ?? "";
+            _logger.LogInformation(
+                "Casso Webhook: Nhận giao dịch Amount={Amount}, Description={Description}",
+                txn.Amount, description);
+
+            // Tìm đơn hàng chưa thanh toán có mã trùng với nội dung chuyển khoản
+            var unpaidOrders = await _db.Orders
+                .Where(o => !o.IsPaid)
+                .ToListAsync();
+
+            var matchedOrder = unpaidOrders.FirstOrDefault(o =>
+                description.Contains(o.OrderCode, StringComparison.OrdinalIgnoreCase));
+
+            if (matchedOrder != null)
+            {
+                matchedOrder.IsPaid = true;
+                matchedOrder.Status = OrderStatus.Processing;
+                await _db.SaveChangesAsync();
+                confirmedCount++;
+                _logger.LogInformation(
+                    "Casso Webhook: Đã tự động xác nhận đơn hàng {OrderCode} — {Amount}đ",
+                    matchedOrder.OrderCode, txn.Amount);
+            }
+        }
+
+        return Ok(new { success = true, message = $"Đã xử lý {confirmedCount} đơn hàng." });
+    }
+
+    // POST /api/orders/webhook/zalopay
+    [HttpPost("webhook/zalopay")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ZaloPayCallback([FromBody] System.Text.Json.JsonElement body)
+    {
+        try
+        {
+            _logger.LogInformation("ZaloPay Callback Body: {Body}", body.GetRawText());
+            var dataStr = body.GetProperty("data").GetString();
+            var reqMac = body.GetProperty("mac").GetString();
+
+            if (dataStr != null && reqMac != null && _zaloPay.VerifyCallback(dataStr, reqMac))
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(dataStr);
+                var root = doc.RootElement;
+                var appTransId = root.GetProperty("app_trans_id").GetString();
+
+                if (!string.IsNullOrEmpty(appTransId))
+                {
+                    var orders = await _db.Orders.Where(o => !o.IsPaid).ToListAsync();
+                    var matchedOrder = orders.FirstOrDefault(o => appTransId.Contains(o.OrderCode.Replace("-", ""), StringComparison.OrdinalIgnoreCase));
+                    if (matchedOrder != null)
+                    {
+                        matchedOrder.IsPaid = true;
+                        matchedOrder.Status = OrderStatus.Processing;
+                        await _db.SaveChangesAsync();
+                    }
+                }
+
+                return Ok(new { return_code = 1, return_message = "success" });
+            }
+
+            return Ok(new { return_code = -1, return_message = "mac not equal" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi xử lý ZaloPay Callback");
+            return Ok(new { return_code = 0, return_message = ex.Message });
+        }
+    }
 }
 
 public record UpdateOrderStatusRequest(string Status);
+
+// DTO cho Casso.vn Webhook
+public class CassoWebhookRequest
+{
+    public int Error { get; set; }
+    public List<CassoTransaction> Data { get; set; } = new();
+}
+
+public class CassoTransaction
+{
+    public long Id { get; set; }
+    public string? Tid { get; set; }
+    public string? Description { get; set; }
+    public decimal Amount { get; set; }
+    public decimal CusumBalance { get; set; }
+    public string? When { get; set; }
+    public string? BankSubAccId { get; set; }
+    public string? SubAccId { get; set; }
+    public string? CorresponsiveName { get; set; }
+    public string? CorresponsiveAccount { get; set; }
+    public string? CorresponsiveBankId { get; set; }
+    public string? CorresponsiveBankName { get; set; }
+}

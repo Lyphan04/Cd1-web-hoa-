@@ -59,13 +59,15 @@ export default function SemanticSearch() {
   return (
     <div className="max-w-7xl mx-auto px-5 py-10 font-sans">
       {/* KHU VỰC TÌM KIẾM */}
-      <div className="text-center mb-8 max-w-2xl mx-auto">
+      <div className="text-center mb-8 max-w-2xl mx-auto mt-4">
+        <div className="w-20 h-20 bg-gradient-to-tr from-pink-300 to-pink-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-md border-4 border-white animate-bounce">
+          🌸
+        </div>
         <h1 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2.5">
-          Tìm Kiếm Bó Hoa Theo Yêu Cầu Của Bạn
+          Xin chào, tôi là Lyp AI 🌸
         </h1>
-        <p className="text-gray-500 text-sm md:text-base mb-5">
-          Mô tả bó hoa bạn mong muốn (ví dụ: "Hoa tặng sinh nhật màu hồng nhẹ
-          nhàng", "Hoa hướng dương tươi thắm")...
+        <p className="text-pink-600 text-sm md:text-base mb-5 bg-pink-50 inline-block px-5 py-2.5 rounded-full border border-pink-100 shadow-sm font-medium">
+          Hãy cho tôi biết bạn muốn tặng hoa cho ai, tôi sẽ giúp bạn chọn bó hoa phù hợp nhất.
         </p>
 
         <form
@@ -77,8 +79,8 @@ export default function SemanticSearch() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Nhập câu hỏi hoặc mô tả tìm kiếm..."
-              className="w-full px-5 py-3 rounded-full border border-slate-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 outline-none text-sm text-gray-700 shadow-xs transition-all"
+              placeholder="Ví dụ: Tôi muốn mua hoa tặng sinh nhật mẹ dưới 500k..."
+              className="w-full px-6 py-4 rounded-full border-2 border-pink-100 focus:border-pink-500 focus:ring-4 focus:ring-pink-100 outline-none text-base text-gray-700 shadow-sm transition-all"
             />
             {query && (
               <button
@@ -94,11 +96,17 @@ export default function SemanticSearch() {
           <button
             type="submit"
             disabled={loading}
-            className={`bg-pink-600 hover:bg-pink-700 text-white font-bold px-7 py-3 rounded-full text-sm cursor-pointer transition-all duration-200 shrink-0 shadow-sm ${
-              loading ? "opacity-70 cursor-not-allowed" : "hover:shadow-md"
+            className={`bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold px-8 py-4 rounded-full text-base cursor-pointer transition-all duration-300 shrink-0 shadow-md flex items-center gap-2 ${
+              loading ? "opacity-70 cursor-not-allowed" : "hover:shadow-lg hover:-translate-y-0.5"
             }`}
           >
-            {loading ? "Đang phân tích..." : "Tìm kiếm"}
+            {loading ? (
+              <>
+                <span className="animate-spin text-xl">🌸</span> Đang suy nghĩ...
+              </>
+            ) : (
+              "Gửi yêu cầu ✨"
+            )}
           </button>
         </form>
 
@@ -111,11 +119,13 @@ export default function SemanticSearch() {
 
       {/* CÂU TƯ VẤN SÂU SẮC TỪ AI */}
       {!loading && aiResponse && (
-        <div className="bg-pink-50 border border-pink-200 rounded-xl p-4 md:p-5 mb-8 flex items-start gap-3 shadow-xs">
-          <span className="text-2xl shrink-0">✨</span>
+        <div className="bg-pink-50 border-2 border-pink-100 rounded-3xl p-5 md:p-6 mb-10 flex items-start gap-4 shadow-sm relative">
+          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl shadow-sm border border-pink-100 shrink-0">
+            🌸
+          </div>
           <div>
-            <div className="font-bold text-pink-600 text-xs tracking-wider uppercase mb-1">
-              GỢI Ý TỪ TRỢ LÝ AI LYP FLOWER
+            <div className="font-bold text-pink-600 text-sm tracking-wider uppercase mb-1.5 flex items-center gap-2">
+              Lyp AI Trả lời ✨
             </div>
             <div className="text-gray-700 text-sm md:text-base leading-relaxed">
               {aiResponse}

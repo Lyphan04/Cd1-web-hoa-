@@ -19,10 +19,9 @@ import toast from "react-hot-toast";
 
 const navLinks = [
     { to: "/", label: "Trang chủ" },
-    { to: "/gioi-thieu", label: "Giới thiệu" },
-    { to: "/semantic-search", label: "Tìm kiếm tương đồng" },
-    { to: "/hoa", label: "Bộ sưu tập", hasDropdown: false },
-    { to: "/chinh-sach", label: "Chính sách" },
+    { to: "/hoa", label: "Sản phẩm", hasDropdown: false },
+    { to: "/bo-suu-tap", label: "Bộ sưu tập", hasDropdown: true },
+    { to: "/semantic-search", label: "Lyp AI ✨" },
     { to: "/blog", label: "Tin tức" },
     { to: "/lien-he", label: "Liên hệ" }
 ];
