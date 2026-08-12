@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Header from './Header';
 import Footer from './Footer';
+import Chatbox from './Chatbox';
 
 export default function CustomerLayout() {
   return (
@@ -13,6 +14,7 @@ export default function CustomerLayout() {
         <Outlet />
       </main>
       <Footer />
+      <Chatbox />
     </div>
   );
 }

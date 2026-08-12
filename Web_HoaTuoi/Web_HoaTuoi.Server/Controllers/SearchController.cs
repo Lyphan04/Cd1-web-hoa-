@@ -247,7 +247,7 @@ namespace Web_HoaTuoi.Server.Controllers
             {
                 try
                 {
-                    string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={_geminiApiKey}";
+                    string geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={_geminiApiKey}";
 
                     var productDetails = matchedProducts.Select(p => $"- {p.name} (Loại: {p.flowerType}, Màu: {p.color})");
                     string productContext = string.Join("\n", productDetails);
