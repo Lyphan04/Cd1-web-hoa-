@@ -12,10 +12,12 @@ namespace Web_HoaTuoi.Server.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly Services.VectorDbService _vectorDb;
 
-    public ProductsController(AppDbContext db)
+    public ProductsController(AppDbContext db, Services.VectorDbService vectorDb)
     {
         _db = db;
+        _vectorDb = vectorDb;
     }
 
     // GET /api/products
@@ -204,6 +206,10 @@ public class ProductsController : ControllerBase
             CategoryId = req.CategoryId,
             Stock = req.Stock,
             MainImageUrl = req.MainImageUrl,
+            FlowerType = req.Material ?? string.Empty,
+            Occasion = req.Style ?? string.Empty,
+            Color = req.Color ?? string.Empty,
+            WeightKg = req.WeightKg,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -211,6 +217,21 @@ public class ProductsController : ControllerBase
 
         _db.Products.Add(product);
         await _db.SaveChangesAsync();
+
+        try
+        {
+            var productWithCategory = await _db.Products
+                .Include(p => p.Category)
+                .FirstOrDefaultAsync(p => p.Id == product.Id);
+            if (productWithCategory != null)
+            {
+                _ = Task.Run(() => _vectorDb.UpsertProductVectorAsync(productWithCategory));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[VectorDb Error]: {ex.Message}");
+        }
 
         return Ok(product.Id);
     }
@@ -234,9 +255,28 @@ public class ProductsController : ControllerBase
         product.CategoryId = req.CategoryId;
         product.Stock = req.Stock;
         product.MainImageUrl = req.MainImageUrl;
+        product.FlowerType = req.Material ?? string.Empty;
+        product.Occasion = req.Style ?? string.Empty;
+        product.Color = req.Color ?? string.Empty;
+        product.WeightKg = req.WeightKg;
         product.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        try
+        {
+            var productWithCategory = await _db.Products
+                .Include(p => p.Category)
+                .FirstOrDefaultAsync(p => p.Id == product.Id);
+            if (productWithCategory != null)
+            {
+                _ = Task.Run(() => _vectorDb.UpsertProductVectorAsync(productWithCategory));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[VectorDb Error]: {ex.Message}");
+        }
 
         return NoContent();
     }
@@ -254,6 +294,15 @@ public class ProductsController : ControllerBase
         product.IsActive = false;
 
         await _db.SaveChangesAsync();
+
+        try
+        {
+            _ = Task.Run(() => _vectorDb.DeleteProductVectorAsync(id));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[VectorDb Error]: {ex.Message}");
+        }
 
         return NoContent();
     }

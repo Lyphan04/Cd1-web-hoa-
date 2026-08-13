@@ -101,6 +101,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient(); // Đăng ký IHttpClientFactory
 builder.Services.AddScoped<IVnPayService, VnPayService>();
 builder.Services.AddScoped<IZaloPayService, ZaloPayService>();
+builder.Services.AddScoped<Web_HoaTuoi.Server.Services.VectorDbService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

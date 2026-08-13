@@ -21,7 +21,6 @@ const navLinks = [
     { to: "/", label: "Trang chủ" },
     { to: "/hoa", label: "Sản phẩm", hasDropdown: false },
     { to: "/bo-suu-tap", label: "Bộ sưu tập", hasDropdown: true },
-    { to: "/semantic-search", label: "Lyp AI ✨" },
     { to: "/blog", label: "Tin tức" },
     { to: "/lien-he", label: "Liên hệ" }
 ];
