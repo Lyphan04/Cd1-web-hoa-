@@ -57,16 +57,16 @@ export default function SemanticSearch() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-5 py-10 font-sans">
+    <div className="max-w-7xl mx-auto px-5 py-10 font-sans dark:text-gray-200">
       {/* KHU VỰC TÌM KIẾM */}
       <div className="text-center mb-8 max-w-2xl mx-auto mt-4">
         <div className="w-20 h-20 bg-gradient-to-tr from-pink-300 to-pink-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-4 shadow-md border-4 border-white animate-bounce">
           🌸
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 mb-2.5">
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-gray-100 mb-2.5">
           Xin chào, tôi là Lyp AI 🌸
         </h1>
-        <p className="text-pink-600 text-sm md:text-base mb-5 bg-pink-50 inline-block px-5 py-2.5 rounded-full border border-pink-100 shadow-sm font-medium">
+        <p className="text-pink-600 dark:text-pink-400 text-sm md:text-base mb-5 bg-pink-50 dark:bg-pink-900/30 inline-block px-5 py-2.5 rounded-full border border-pink-100 dark:border-pink-800 shadow-sm font-medium">
           Hãy cho tôi biết bạn muốn tặng hoa cho ai, tôi sẽ giúp bạn chọn bó hoa phù hợp nhất.
         </p>
 
@@ -80,7 +80,7 @@ export default function SemanticSearch() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Ví dụ: Tôi muốn mua hoa tặng sinh nhật mẹ dưới 500k..."
-              className="w-full px-6 py-4 rounded-full border-2 border-pink-100 focus:border-pink-500 focus:ring-4 focus:ring-pink-100 outline-none text-base text-gray-700 shadow-sm transition-all"
+              className="w-full px-6 py-4 rounded-full border-2 border-pink-100 dark:border-slate-800 bg-white dark:bg-[#1a1a1a] focus:border-pink-500 focus:ring-4 focus:ring-pink-100 dark:focus:ring-pink-900/50 outline-none text-base text-gray-700 dark:text-gray-200 shadow-sm transition-all"
             />
             {query && (
               <button
@@ -119,15 +119,15 @@ export default function SemanticSearch() {
 
       {/* CÂU TƯ VẤN SÂU SẮC TỪ AI */}
       {!loading && aiResponse && (
-        <div className="bg-pink-50 border-2 border-pink-100 rounded-3xl p-5 md:p-6 mb-10 flex items-start gap-4 shadow-sm relative">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl shadow-sm border border-pink-100 shrink-0">
+        <div className="bg-pink-50 dark:bg-pink-900/20 border-2 border-pink-100 dark:border-pink-800/50 rounded-3xl p-5 md:p-6 mb-10 flex items-start gap-4 shadow-sm relative">
+          <div className="w-12 h-12 bg-white dark:bg-[#1a1a1a] rounded-full flex items-center justify-center text-2xl shadow-sm border border-pink-100 dark:border-pink-800 shrink-0">
             🌸
           </div>
           <div>
-            <div className="font-bold text-pink-600 text-sm tracking-wider uppercase mb-1.5 flex items-center gap-2">
+            <div className="font-bold text-pink-600 dark:text-pink-400 text-sm tracking-wider uppercase mb-1.5 flex items-center gap-2">
               Lyp AI Trả lời ✨
             </div>
-            <div className="text-gray-700 text-sm md:text-base leading-relaxed">
+            <div className="text-gray-700 dark:text-gray-300 text-sm md:text-base leading-relaxed">
               {aiResponse}
             </div>
           </div>
@@ -140,12 +140,12 @@ export default function SemanticSearch() {
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="bg-white rounded-2xl overflow-hidden border border-gray-100 p-4 space-y-3 animate-pulse"
+              className="bg-white dark:bg-[#1a1a1a] rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-800 p-4 space-y-3 animate-pulse"
             >
-              <div className="bg-gray-200 h-60 rounded-xl w-full"></div>
-              <div className="bg-gray-200 h-4 rounded w-3/4 mx-auto"></div>
-              <div className="bg-gray-200 h-4 rounded w-1/2 mx-auto"></div>
-              <div className="bg-gray-200 h-10 rounded-lg w-full"></div>
+              <div className="bg-gray-200 dark:bg-slate-800 h-60 rounded-xl w-full"></div>
+              <div className="bg-gray-200 dark:bg-slate-800 h-4 rounded w-3/4 mx-auto"></div>
+              <div className="bg-gray-200 dark:bg-slate-800 h-4 rounded w-1/2 mx-auto"></div>
+              <div className="bg-gray-200 dark:bg-slate-800 h-10 rounded-lg w-full"></div>
             </div>
           ))}
         </div>
@@ -153,13 +153,13 @@ export default function SemanticSearch() {
 
       {/* THÔNG BÁO KHI KHÔNG CÓ KẾT QUẢ */}
       {!loading && hasSearched && results.length === 0 && !errorMessage && (
-        <div className="text-center text-gray-500 my-10 py-8 bg-white rounded-2xl border border-gray-100 max-w-lg mx-auto">
-          <h3 className="text-lg font-bold text-gray-800">
+        <div className="text-center text-gray-500 dark:text-gray-400 my-10 py-8 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-slate-800 max-w-lg mx-auto">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
             Không tìm thấy bó hoa phù hợp với mô tả của bạn.
           </h3>
-          <p className="mt-2 text-sm text-gray-500">
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             Hãy thử mô tả lại theo cách khác hoặc dùng các từ khóa gợi ý như{" "}
-            <span className="text-pink-600 font-medium">
+            <span className="text-pink-600 dark:text-pink-400 font-medium">
               "hoa hồng đỏ", "hoa sinh nhật"
             </span>
             ...
@@ -186,11 +186,11 @@ export default function SemanticSearch() {
             return (
               <div
                 key={product.id || product.productId}
-                className="group bg-white rounded-2xl overflow-hidden shadow-xs hover:shadow-lg border border-gray-100 transition-all duration-300 flex flex-col justify-between pb-4"
+                className="group bg-white dark:bg-[#1a1a1a] rounded-2xl overflow-hidden shadow-xs hover:shadow-lg border border-gray-100 dark:border-slate-800 transition-all duration-300 flex flex-col justify-between pb-4"
               >
                 <div>
                   {/* Khung Ảnh */}
-                  <div className="relative overflow-hidden aspect-square bg-gray-50">
+                  <div className="relative overflow-hidden aspect-square bg-gray-50 dark:bg-slate-800">
                     <Link to={productDetailLink} className="block w-full h-full">
                       <img
                         src={imageSrc}
@@ -217,9 +217,9 @@ export default function SemanticSearch() {
                   <div className="pt-4 px-4 text-center">
                     <Link
                       to={productDetailLink}
-                      className="block group-hover:text-pink-600 transition-colors"
+                      className="block group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors"
                     >
-                      <h3 className="text-base font-bold text-slate-800 line-clamp-1 mb-2">
+                      <h3 className="text-base font-bold text-slate-800 dark:text-gray-200 line-clamp-1 mb-2">
                         {product.name}
                       </h3>
                     </Link>

@@ -9,6 +9,7 @@ import apiClient from '../api/client';
 import { addressApi } from '../api/addresses';
 import toast from 'react-hot-toast';
 import { MapPin, QrCode, Banknote, X, CheckCircle, User, Phone, MessageSquare, Calendar, ChevronRight, ShoppingBag, CreditCard, Truck, ArrowLeft, Loader2 } from 'lucide-react';
+import LocationPicker from '../components/common/LocationPicker';
 
 // ============================================================
 // Modal QR thanh toán - Tự động xác nhận & Chuyên nghiệp
@@ -318,6 +319,8 @@ export default function CheckoutPage() {
     receiverName: '',
     receiverPhone: '',
     receiverAddress: '',
+    latitude: null,
+    longitude: null,
     messageCard: '',
     deliveryTime: new Date(new Date().getTime() + 2 * 60 * 60 * 1000).toISOString().slice(0, 16),
   });
@@ -345,6 +348,8 @@ export default function CheckoutPage() {
               receiverName: defaultAddr.fullName,
               receiverPhone: defaultAddr.phoneNumber,
               receiverAddress: defaultAddr.addressLine,
+              latitude: defaultAddr.latitude,
+              longitude: defaultAddr.longitude,
             }));
           }
         })
@@ -358,26 +363,32 @@ export default function CheckoutPage() {
       receiverName: addr.fullName,
       receiverPhone: addr.phoneNumber,
       receiverAddress: addr.addressLine,
+      latitude: addr.latitude,
+      longitude: addr.longitude,
     }));
   };
 
   const subtotal = state?.finalAmount ?? items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  const discountAmount = state?.discountAmount ?? 0;
   const finalAmount = subtotal + shippingFee;
 
   function handleChange(e) { setForm(f => ({ ...f, [e.target.name]: e.target.value })); }
 
   async function handlePlaceOrder() {
     if (submitted) return;
-    if (!form.receiverName || !form.receiverPhone || !form.receiverAddress) {
+    if (!form.receiverName || !form.receiverPhone || (!isStorePickup && !form.receiverAddress)) {
       return toast.error('Vui lòng điền đầy đủ thông tin');
     }
     setLoading(true);
     setSubmitted(true);
     try {
-      const res = await apiClient.post('/orders', {
+      const payload = {
         type: 'Retail',
         paymentMethod,
         ...form,
+        deliveryTime: form.deliveryTime ? form.deliveryTime : null,
+        messageCard: form.messageCard ? form.messageCard : null,
+        voucherCode: form.voucherCode ? form.voucherCode : null,
         isStorePickup,
         shippingFee,
         items: items.map(i => ({
@@ -387,7 +398,9 @@ export default function CheckoutPage() {
           unitPrice: i.unitPrice,
           quantity: i.quantity,
         })),
-      });
+      };
+
+      const res = await apiClient.post('/orders', payload);
 
       if (paymentMethod === 'QrCode' && res.data.qrInfo) {
         // Hiển thị modal QR
@@ -428,7 +441,7 @@ export default function CheckoutPage() {
         />
       )}
 
-      <div className="min-h-screen bg-[#fdfdfb] pt-2 pb-6">
+      <div className="min-h-screen bg-[#fdfdfb] dark:bg-[#121212] transition-colors pt-2 pb-6">
         <div className="max-w-6xl mx-auto px-4">
           
           {/* === Breadcrumbs === */}
@@ -444,8 +457,8 @@ export default function CheckoutPage() {
 
           <div className="flex items-end justify-between gap-3 mb-3">
             <div>
-              <h1 className="text-xl md:text-2xl font-black text-gray-900 font-playfair tracking-tight">Thanh toán</h1>
-              <p className="text-[10px] text-gray-500">Hoàn tất đơn hàng của bạn.</p>
+              <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-gray-100 font-playfair tracking-tight">Thanh toán</h1>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400">Hoàn tất đơn hàng của bạn.</p>
             </div>
             <button onClick={() => navigate('/gio-hang')} className="flex items-center gap-1.5 text-[10px] font-bold text-amber-700 hover:text-amber-800 transition-colors">
               <ArrowLeft size={12} /> Quay lại
@@ -458,12 +471,12 @@ export default function CheckoutPage() {
             <div className="lg:col-span-7 space-y-3">
               
               {/* Mục: Thông tin người nhận */}
-              <div className="bg-white rounded-2xl p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-gray-100">
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-gray-100 dark:border-slate-800">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-700">
+                  <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-700 dark:text-amber-400">
                     <User size={14} />
                   </div>
-                  <h2 className="text-base font-bold text-gray-800 font-playfair tracking-wide uppercase">Thông tin người nhận</h2>
+                  <h2 className="text-base font-bold text-gray-800 dark:text-gray-200 font-playfair tracking-wide uppercase">Thông tin người nhận</h2>
                 </div>
 
                 {!isStorePickup && savedAddresses.length > 0 && (
@@ -517,12 +530,16 @@ export default function CheckoutPage() {
                   {!isStorePickup && (
                     <div className="animate-in fade-in slide-in-from-top-1 duration-200">
                       <label className="section-label">Địa chỉ giao hàng</label>
-                      <div className="relative group">
+                      <div className="relative group mb-3">
                         <MapPin size={12} className="absolute left-3 top-3 text-gray-400 group-focus-within:text-amber-600" />
                         <textarea name="receiverAddress" value={form.receiverAddress} onChange={handleChange}
                           rows={1} className="input pl-9 pt-2 h-9 bg-gray-50/30 border-gray-100 focus:bg-white resize-none text-xs"
                           placeholder="Địa chỉ..." />
                       </div>
+                      <LocationPicker 
+                          initialPosition={form.latitude ? { lat: form.latitude, lng: form.longitude } : null}
+                          onLocationSelected={({latitude, longitude}) => setForm(f => ({ ...f, latitude, longitude }))} 
+                      />
                     </div>
                   )}
 
@@ -539,16 +556,16 @@ export default function CheckoutPage() {
               </div>
 
               {/* Mục: Thời gian & Lời nhắn */}
-              <div className="bg-white rounded-2xl p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-4 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07)] border border-gray-100 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                    <div className="w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
                       <Calendar size={12} />
                     </div>
-                    <h2 className="text-xs font-bold text-gray-800">Thời gian nhận</h2>
+                    <h2 className="text-xs font-bold text-gray-800 dark:text-gray-200">Thời gian nhận</h2>
                   </div>
                   <input name="deliveryTime" type="datetime-local" value={form.deliveryTime} onChange={handleChange}
-                    className="input h-9 text-xs bg-gray-50/30 border-gray-100 focus:bg-white" />
+                    className="input h-9 text-xs bg-gray-50/30 dark:bg-slate-900/30 border-gray-100 dark:border-slate-800 dark:text-gray-200 focus:bg-white dark:focus:bg-[#222]" />
                 </div>
 
                 <div>
@@ -568,14 +585,14 @@ export default function CheckoutPage() {
             {/* === CỘT PHẢI: TÓM TẮT & THANH TOÁN === */}
             <div className="lg:col-span-5 space-y-3 lg:sticky lg:top-4">
               
-              <div className="bg-white rounded-3xl overflow-hidden shadow-[0_4px_25px_-5px_rgba(0,0,0,0.1)] border border-gray-100">
+              <div className="bg-white dark:bg-[#1a1a1a] rounded-3xl overflow-hidden shadow-[0_4px_25px_-5px_rgba(0,0,0,0.1)] border border-gray-100 dark:border-slate-800">
                 {/* Header Tóm tắt */}
-                <div className="bg-gray-50/80 px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+                <div className="bg-gray-50/80 dark:bg-[#151515]/80 px-4 py-2.5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <ShoppingBag size={14} className="text-amber-700" />
-                    <h2 className="text-sm font-bold text-gray-800 font-playfair uppercase tracking-wider">Tóm tắt</h2>
+                    <ShoppingBag size={14} className="text-amber-700 dark:text-amber-500" />
+                    <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 font-playfair uppercase tracking-wider">Tóm tắt</h2>
                   </div>
-                  <span className="text-[10px] font-bold text-amber-700 bg-amber-100/50 px-2 py-0.5 rounded-full">{items.length} món</span>
+                  <span className="text-[10px] font-bold text-amber-700 dark:text-amber-500 bg-amber-100/50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">{items.length} món</span>
                 </div>
 
                 <div className="p-4 space-y-4">
@@ -597,10 +614,10 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* List items */}
-                  <div className="space-y-2 max-h-[90px] overflow-y-auto pr-1 custom-scrollbar border-b border-dashed border-gray-200 pb-2">
+                  <div className="space-y-2 max-h-[90px] overflow-y-auto pr-1 custom-scrollbar border-b border-dashed border-gray-200 dark:border-slate-700 pb-2">
                     {items.map(i => (
                       <div key={i.productId} className="flex gap-2.5 animate-in fade-in transition-all">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-50 border border-gray-100 shrink-0">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-slate-800 shrink-0">
                           <img
                             src={resolveImage(i.mainImageUrl)}
                             alt={i.productName}
@@ -609,10 +626,10 @@ export default function CheckoutPage() {
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-gray-800 truncate">{i.productName}</p>
+                          <p className="text-[11px] font-bold text-gray-800 dark:text-gray-200 truncate">{i.productName}</p>
                           <div className="flex justify-between items-center mt-0.5">
                             <span className="text-[10px] text-gray-400">× {i.quantity}</span>
-                            <span className="text-[11px] font-bold text-gray-700">{formatVnd(i.unitPrice * i.quantity)}</span>
+                            <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">{formatVnd(i.unitPrice * i.quantity)}</span>
                           </div>
                         </div>
                       </div>
@@ -656,21 +673,27 @@ export default function CheckoutPage() {
                   </div>
 
                   {/* Tổng kết tiền */}
-                  <div className="bg-gray-50/50 rounded-xl p-3 space-y-2">
+                  <div className="bg-gray-50/50 dark:bg-slate-900/30 rounded-xl p-3 space-y-2">
                     <div className="flex justify-between items-center text-[10px]">
                       <span className="text-gray-500 font-medium">Tạm tính</span>
-                      <span className="font-bold text-gray-800">{formatVnd(subtotal)}</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200">{formatVnd(subtotal)}</span>
                     </div>
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="text-amber-600 dark:text-amber-500 font-medium">Giảm giá voucher</span>
+                        <span className="font-bold text-amber-600 dark:text-amber-500">- {formatVnd(discountAmount)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center text-[10px]">
                       <span className="text-gray-500 font-medium">Phí giao</span>
-                      <span className={`font-bold ${isStorePickup ? 'text-green-600' : 'text-gray-800'}`}>
+                      <span className={`font-bold ${isStorePickup ? 'text-green-600 dark:text-green-500' : 'text-gray-800 dark:text-gray-200'}`}>
                         {isStorePickup ? 'Free' : formatVnd(shippingFee)}
                       </span>
                     </div>
-                    <div className="pt-2 border-t border-dashed border-gray-200 flex justify-between items-end">
+                    <div className="pt-2 border-t border-dashed border-gray-200 dark:border-slate-700 flex justify-between items-end">
                       <div>
-                        <p className="text-[9px] font-black uppercase text-gray-400 tracking-tighter mb-0.5">Tổng cộng</p>
-                        <span className="text-2xl font-black text-amber-600 font-playfair tracking-tighter">{formatVnd(finalAmount)}</span>
+                        <p className="text-[9px] font-black uppercase text-gray-400 dark:text-gray-500 tracking-tighter mb-0.5">Tổng cộng</p>
+                        <span className="text-2xl font-black text-amber-600 dark:text-amber-500 font-playfair tracking-tighter">{formatVnd(finalAmount)}</span>
                       </div>
                     </div>
                   </div>

@@ -19,48 +19,20 @@ export default function BlogPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Dữ liệu demo cho web bán hoa
-        const demoBlogs = [
-            {
-                id: 1,
-                slug: "y-nghia-hoa-hong",
-                title: "Ngôn ngữ kỳ diệu của các loài hoa tại Lyp Flower",
-                excerpt:
-                    "Mỗi đóa hoa mang trong mình một sứ giả thầm lặng, gửi gắm tâm tư mà lời nói chẳng thể diễn tả hết. Khám phá ý nghĩa sâu sắc của hoa hồng, lan, tulip...",
-                coverImageUrl: "hh1.jpg",
-                type: "Lifestyle",
-                createdAt: "2026-03-01",
-            },
-            {
-                id: 2,
-                slug: "hoa-cuoi-dep",
-                title: "Khơi nguồn cảm hứng cho ngày trọng đại",
-                excerpt:
-                    "Trong giấc mơ về một hôn lễ hoàn hảo, đóa hoa cầm tay chính là mảnh ghép cuối cùng tôn vinh vẻ đẹp thiêng liêng rạng ngời của nàng.",
-                coverImageUrl: "hc1.jpg",
-                type: "Lookbook",
-                createdAt: "2026-03-02",
-            },
-            {
-                id: 3,
-                slug: "cach-cham-hoa-tuoi",
-                title: "Lắng nghe tiếng thở của những đóa hoa",
-                excerpt:
-                    "Chăm sóc hoa không chỉ là kỹ thuật, mà là liệu pháp tâm hồn. Hãy cùng học cách nâng niu để giữ mãi vẻ tươi mới cho không gian của bạn.",
-                coverImageUrl: "tl1.jpg",
-                type: "Lifestyle",
-                createdAt: "2026-03-03",
-            },
-        ];
-
-        setTimeout(() => {
-            setBlogs(demoBlogs);
-            setLoading(false);
-        }, 500);
+        import("../api/client").then(({ default: apiClient }) => {
+            apiClient.get("/blog")
+                .then(res => {
+                    // API returns { Total, Page, PageSize, Items }
+                    const posts = res.data.items ?? res.data ?? [];
+                    setBlogs(posts.filter(p => p.isPublished !== false));
+                })
+                .catch(err => console.error(err))
+                .finally(() => setLoading(false));
+        });
     }, []);
 
     return (
-        <div style={{ backgroundColor: "#faf7f2" }} className="min-h-screen pb-20">
+        <div className="bg-[#faf7f2] dark:bg-[#121212] transition-colors min-h-screen pb-20">
 
             {/* Banner */}
             <div className="relative h-64 md:h-80 w-full overflow-hidden flex items-center justify-center">
@@ -88,9 +60,9 @@ export default function BlogPage() {
 
             <div className="max-w-7xl mx-auto px-4 py-12">
                 {loading ? (
-                    <div className="text-center py-20">Đang tải...</div>
+                    <div className="text-center py-20 dark:text-gray-400">Đang tải...</div>
                 ) : blogs.length === 0 ? (
-                    <div className="text-center py-20 text-gray-500">
+                    <div className="text-center py-20 text-gray-500 dark:text-gray-400">
                         Chưa có bài viết nào.
                     </div>
                 ) : (
@@ -101,7 +73,7 @@ export default function BlogPage() {
                                 to={`/blog/${post.slug}`}
                                 className="group block"
                             >
-                                <div className="rounded-2xl overflow-hidden aspect-video bg-gray-100 mb-4 relative">
+                                <div className="rounded-2xl overflow-hidden aspect-video bg-gray-100 dark:bg-slate-800 mb-4 relative">
                                     <img
                                         src={resolveImage(post.coverImageUrl)}
                                         alt={post.title}
@@ -113,15 +85,15 @@ export default function BlogPage() {
                                     </div>
                                 </div>
 
-                                <p className="text-xs text-gray-500 mb-2">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                                     {formatBlogDate(post.createdAt)}
                                 </p>
 
-                                <h3 className="text-lg font-bold mb-2 text-gray-800 group-hover:text-amber-600">
+                                <h3 className="text-lg font-bold mb-2 text-gray-800 dark:text-gray-200 group-hover:text-amber-600 dark:group-hover:text-amber-400">
                                     {post.title}
                                 </h3>
 
-                                <p className="text-sm text-gray-600">{post.excerpt}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{post.excerpt}</p>
                             </Link>
                         ))}
                     </div>

@@ -8,7 +8,7 @@ import Chatbox from './Chatbox';
 export default function CustomerLayout() {
   return (
     <div className="min-h-screen flex flex-col">
-      <Toaster position="top-right" toastOptions={{ duration: 200 }} />
+      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
       <Header />
       <main className="flex-1">
         <Outlet />

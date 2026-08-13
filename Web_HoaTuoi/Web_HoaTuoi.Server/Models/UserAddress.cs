@@ -13,5 +13,9 @@ public class UserAddress
     
     public bool IsDefault { get; set; } = false;
 
+    // Vị trí bản đồ
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

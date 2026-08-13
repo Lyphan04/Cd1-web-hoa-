@@ -3,13 +3,14 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { useAuthStore } from "../store/authStore"
 import { 
     LogOut, User, Mail, Phone, MapPin, ChevronLeft, 
-    CheckCircle2, Package, XCircle, ChevronRight, KeyRound, X, Plus, Trash2, Home
+    CheckCircle2, Package, XCircle, ChevronRight, KeyRound, X, Plus, Trash2, Home, Eye, EyeOff
 } from "lucide-react"
 import { authApi } from "../api/auth"
 import { addressApi } from "../api/addresses"
 import { formatVnd } from "../utils/format"
 import { resolveImage } from "../utils/imageResolver"
 import toast from "react-hot-toast"
+import LocationPicker from "../components/common/LocationPicker"
 
 export default function ProfilePage() {
     const navigate = useNavigate()
@@ -20,13 +21,16 @@ export default function ProfilePage() {
     const [addresses, setAddresses] = useState([])
     const [loadingAddresses, setLoadingAddresses] = useState(false)
     const [showAddressModal, setShowAddressModal] = useState(false)
-    const [addressForm, setAddressForm] = useState({ fullName: "", phoneNumber: "", addressLine: "", isDefault: false })
+    const [addressForm, setAddressForm] = useState({ fullName: "", phoneNumber: "", addressLine: "", isDefault: false, latitude: null, longitude: null })
 
     const [showUpdateModal, setShowUpdateModal] = useState(false)
     const [showPasswordModal, setShowPasswordModal] = useState(false)
     const [updateForm, setUpdateForm] = useState({ fullName: "", phone: "", address: "" })
     const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "" })
     const [isSubmitting, setIsSubmitting] = useState(false)
+
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+    const [showNewPassword, setShowNewPassword] = useState(false)
 
     useEffect(() => {
         if (user) {
@@ -121,7 +125,7 @@ export default function ProfilePage() {
             await addressApi.createAddress(addressForm)
             toast.success("Thêm địa chỉ thành công")
             setShowAddressModal(false)
-            setAddressForm({ fullName: "", phoneNumber: "", addressLine: "", isDefault: false })
+            setAddressForm({ fullName: "", phoneNumber: "", addressLine: "", isDefault: false, latitude: null, longitude: null })
             await loadAddresses()
         } catch (err) {
             toast.error("Lỗi khi thêm địa chỉ")
@@ -400,25 +404,43 @@ export default function ProfilePage() {
                             </button>
                         </div>
                         <form onSubmit={handleChangePassword} className="space-y-4">
-                            <div>
+                            <div className="relative">
                                 <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider mb-2">Mật khẩu hiện tại</label>
-                                <input
-                                    required
-                                    type="password"
-                                    value={passwordForm.currentPassword}
-                                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all outline-none"
-                                />
+                                <div className="relative">
+                                    <input
+                                        required
+                                        type={showCurrentPassword ? "text" : "password"}
+                                        value={passwordForm.currentPassword}
+                                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all outline-none pr-10"
+                                    />
+                                    <button 
+                                        type="button"
+                                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    >
+                                        {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
-                            <div>
+                            <div className="relative">
                                 <label className="block text-[10px] font-black uppercase text-gray-500 tracking-wider mb-2">Mật khẩu mới</label>
-                                <input
-                                    required
-                                    type="password"
-                                    value={passwordForm.newPassword}
-                                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all outline-none"
-                                />
+                                <div className="relative">
+                                    <input
+                                        required
+                                        type={showNewPassword ? "text" : "password"}
+                                        value={passwordForm.newPassword}
+                                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all outline-none pr-10"
+                                    />
+                                    <button 
+                                        type="button"
+                                        onClick={() => setShowNewPassword(!showNewPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    >
+                                        {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                    </button>
+                                </div>
                             </div>
                             <button
                                 type="submit"
@@ -474,6 +496,9 @@ export default function ProfilePage() {
                                     className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 transition-all outline-none min-h-[100px]"
                                 />
                             </div>
+                            <LocationPicker 
+                                onLocationSelected={({latitude, longitude}) => setAddressForm({ ...addressForm, latitude, longitude })} 
+                            />
                             <div className="flex items-center gap-2 mt-2">
                                 <input 
                                     type="checkbox" 

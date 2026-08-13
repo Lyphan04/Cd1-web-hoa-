@@ -65,10 +65,10 @@ export default function ProductCard({ product }) {
     }
 
     return (
-        <Link to={`/hoa/${slug}`} className="group block text-center space-y-3">
+        <Link to={`/hoa/${slug}`} className="group block text-center space-y-3 bg-white dark:bg-[#1a1a1a] p-2 rounded-2xl border dark:border-slate-800 transition-colors">
 
             {/* Ảnh sản phẩm */}
-            <div className="relative overflow-hidden rounded-2xl aspect-square bg-gray-50 shadow-sm">
+            <div className="relative overflow-hidden rounded-2xl aspect-square bg-gray-50 dark:bg-gray-800 shadow-sm">
                 <img
                     src={imgSrc}
                     alt={name}
@@ -78,7 +78,7 @@ export default function ProductCard({ product }) {
                 />
                 <button 
                     onClick={handleToggleWishlist}
-                    className={`absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-[2px] shadow-sm flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 ${isWishlisted ? 'opacity-100 text-pink-500 hover:bg-pink-50' : 'text-gray-300 hover:text-pink-500 hover:bg-white'}`}
+                    className={`absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 dark:bg-black/50 backdrop-blur-[2px] shadow-sm flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 ${isWishlisted ? 'opacity-100 text-pink-500 hover:bg-pink-50 dark:hover:bg-pink-900/20' : 'text-gray-300 dark:text-gray-600 hover:text-pink-500 hover:bg-white dark:hover:bg-gray-700'}`}
                 >
                     <Heart size={16} className={`transition-colors ${isWishlisted ? 'fill-current text-pink-500' : 'stroke-current'}`} />
                 </button>
@@ -87,12 +87,12 @@ export default function ProductCard({ product }) {
             {/* Thông tin */}
             <div className="space-y-1.5 px-2">
                 {/* Tên hoa */}
-                <h3 className="text-sm font-bold text-gray-900 line-clamp-2 min-h-[40px] flex items-center justify-center">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 line-clamp-2 min-h-[40px] flex items-center justify-center">
                     {name}
                 </h3>
 
                 {/* Giá */}
-                <div className="text-sm font-bold text-[#E92E69]">
+                <div className="text-sm font-bold text-[#E92E69] dark:text-pink-400">
                     {formatVnd(price)}
                 </div>
 
@@ -100,10 +100,10 @@ export default function ProductCard({ product }) {
                 <div className="flex items-center justify-center gap-1.5 py-1 text-[10px] font-bold">
                     <div className="flex items-center gap-1">
                         <RatingStars rating={averageRating || 5} size={11} color="#FFB800" />
-                        <span className="text-gray-900">{(averageRating || 5).toFixed(1)}</span>
+                        <span className="text-gray-900 dark:text-gray-300">{(averageRating || 5).toFixed(1)}</span>
                     </div>
-                    <span className="text-gray-200">|</span>
-                    <span className="text-gray-400">Đã bán {soldCount ?? 0}</span>
+                    <span className="text-gray-200 dark:text-gray-700">|</span>
+                    <span className="text-gray-400 dark:text-gray-500">Đã bán {soldCount ?? 0}</span>
                 </div>
 
                 {/* Nút đặt hàng */}

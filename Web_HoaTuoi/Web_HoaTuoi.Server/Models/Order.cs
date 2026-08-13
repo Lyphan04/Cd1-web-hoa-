@@ -21,6 +21,10 @@ public class Order
     public string? UserId { get; set; }
     public AppUser? User { get; set; }
 
+    // Nhân viên giao hàng được phân công
+    public string? StaffId { get; set; }
+    public AppUser? Staff { get; set; }
+
     // Trạng thái đơn hàng
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
@@ -31,6 +35,10 @@ public class Order
     public string ReceiverPhone { get; set; } = string.Empty;
 
     public string ReceiverAddress { get; set; } = string.Empty;
+
+    // Vị trí bản đồ giao hàng
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 
     // Lời nhắn trên thiệp
     public string? MessageCard { get; set; }
@@ -58,6 +66,10 @@ public class Order
     public bool IsPaid { get; set; } = false;
 
     public DateTime? PaidAt { get; set; }
+
+    // ───── Thông tin Khuyến mãi ─────
+    public string? VoucherCode { get; set; }
+    public decimal DiscountAmount { get; set; } = 0;
 
     // ───── Chi tiết đơn hàng ─────
 

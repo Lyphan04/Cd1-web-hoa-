@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, ListOrdered, CalendarDays } from 'lucide-react';
+import { Search, ListOrdered, CalendarDays, Plus, X } from 'lucide-react';
 import apiClient from '../../api/client';
 import { formatVnd } from '../../utils/format';
 import toast from 'react-hot-toast';
@@ -10,6 +10,10 @@ export default function AdminUsers() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [staffForm, setStaffForm] = useState({ fullName: '', email: '', phone: '', password: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const PAGE_SIZE = 15;
 
   const fetchUsers = () => {
@@ -32,13 +36,37 @@ export default function AdminUsers() {
     }
   };
 
+  const handleCreateStaff = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await apiClient.post('/users/staff', staffForm);
+      toast.success('Tạo tài khoản nhân viên thành công');
+      setIsModalOpen(false);
+      setStaffForm({ fullName: '', email: '', phone: '', password: '' });
+      fetchUsers(); // Refresh danh sách
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Quản lý Khách hàng</h1>
-        <p className="text-sm text-gray-400">{total} khách hàng</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Quản lý Khách hàng & Nhân viên</h1>
+          <p className="text-sm text-gray-400">{total} tài khoản</p>
+        </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="btn-primary"
+        >
+          <Plus size={18} /> Tạo TK Nhân viên
+        </button>
       </div>
 
       <div className="relative max-w-md">
@@ -127,6 +155,50 @@ export default function AdminUsers() {
           </div>
         )}
       </div>
+
+      {/* Modal Tạo Nhân Viên */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <h3 className="font-bold text-lg text-gray-900">Tạo tài khoản Nhân viên</h3>
+              <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateStaff} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Họ tên *</label>
+                <input required type="text" className="input" placeholder="Nguyễn Văn A"
+                  value={staffForm.fullName} onChange={e => setStaffForm({...staffForm, fullName: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email * (Dùng để đăng nhập)</label>
+                <input required type="email" className="input" placeholder="nhanvien@hoatuoi.vn"
+                  value={staffForm.email} onChange={e => setStaffForm({...staffForm, email: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu *</label>
+                <input required type="password" className="input" placeholder="Mật khẩu ít nhất 6 ký tự"
+                  value={staffForm.password} onChange={e => setStaffForm({...staffForm, password: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                <input type="tel" className="input" placeholder="09xxxx"
+                  value={staffForm.phone} onChange={e => setStaffForm({...staffForm, phone: e.target.value})} />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="btn-ghost px-4 py-2 text-gray-500 hover:text-gray-700">Hủy</button>
+                <button type="submit" disabled={isSubmitting} className="btn-primary">
+                  {isSubmitting ? 'Đang tạo...' : 'Tạo tài khoản'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

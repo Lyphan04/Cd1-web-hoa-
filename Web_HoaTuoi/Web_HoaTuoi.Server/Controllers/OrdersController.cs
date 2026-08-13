@@ -7,6 +7,10 @@ using Web_HoaTuoi.Server.Data;
 using Web_HoaTuoi.Server.DTOs;
 using Web_HoaTuoi.Server.Models;
 using Web_HoaTuoi.Server.Services;
+using System.Text.Json; // Bắt buộc cho SePay Webhook
+using Web_HoaTuoi.Server.Hubs;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Identity;
 
 namespace Web_HoaTuoi.Server.Controllers;
 
@@ -15,28 +19,31 @@ namespace Web_HoaTuoi.Server.Controllers;
 public class OrdersController : ControllerBase
 {
     // === Thông tin tài khoản ngân hàng để tạo VietQR ===
-    private const string QrBankId = "VCB";               // Vietcombank
-    private const string QrAccountNumber = "1029045872"; // Số tài khoản thật
-    private const string QrAccountName = "PHAN THI KIM LY"; // Tên tài khoản
+    private const string QrBankId = "MB"; // Bắt buộc là MB
+    private const string QrAccountNumber = "251099992345"; // Số TK MB của ông
+    private const string QrAccountName = "NGUYEN TRONG HUNG"; // Tên của ông
 
     private readonly AppDbContext _db;
     private readonly IInventoryService _inventory;
-    private readonly IZaloPayService _zaloPay;
     private readonly ILogger<OrdersController> _logger;
     private readonly IConfiguration _config;
+    private readonly IHubContext<OrderHub> _hubContext;
+    private readonly UserManager<AppUser> _userManager;
 
     public OrdersController(
         AppDbContext db,
         IInventoryService inventory,
-        IZaloPayService zaloPay,
         ILogger<OrdersController> logger,
-        IConfiguration config)
+        IConfiguration config,
+        IHubContext<OrderHub> hubContext,
+        UserManager<AppUser> userManager)
     {
         _db = db;
         _inventory = inventory;
-        _zaloPay = zaloPay;
         _logger = logger;
         _config = config;
+        _hubContext = hubContext;
+        _userManager = userManager;
     }
 
     // POST /api/orders
@@ -96,9 +103,34 @@ public class OrdersController : ControllerBase
                 });
             }
 
+            // ===== Xử lý Mã giảm giá =====
+            decimal discountAmount = 0;
+            Voucher? appliedVoucher = null;
+            if (!string.IsNullOrWhiteSpace(req.VoucherCode))
+            {
+                appliedVoucher = await _db.Vouchers.FirstOrDefaultAsync(v => v.Code == req.VoucherCode.ToUpper());
+                if (appliedVoucher != null && appliedVoucher.IsActive && appliedVoucher.ValidUntil >= DateTime.UtcNow && appliedVoucher.UsedCount < appliedVoucher.UsageLimit && totalAmount >= appliedVoucher.MinOrderValue)
+                {
+                    if (appliedVoucher.DiscountType == "Percentage")
+                    {
+                        discountAmount = totalAmount * (appliedVoucher.DiscountValue / 100);
+                        if (appliedVoucher.MaxDiscountAmount.HasValue && discountAmount > appliedVoucher.MaxDiscountAmount.Value)
+                        {
+                            discountAmount = appliedVoucher.MaxDiscountAmount.Value;
+                        }
+                    }
+                    else
+                    {
+                        discountAmount = appliedVoucher.DiscountValue;
+                    }
+                    if (discountAmount > totalAmount) discountAmount = totalAmount;
+
+                    appliedVoucher.UsedCount += 1;
+                }
+            }
+
             // ===== Tạo mã đơn =====
-            var orderCode =
-                $"ORD-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
+            var orderCode = $"ORD-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
 
             var order = new Order
             {
@@ -108,12 +140,16 @@ public class OrdersController : ControllerBase
                 ReceiverName = req.ReceiverName,
                 ReceiverPhone = req.ReceiverPhone,
                 ReceiverAddress = req.ReceiverAddress,
+                Latitude = req.Latitude,
+                Longitude = req.Longitude,
                 MessageCard = req.MessageCard,
                 DeliveryTime = req.DeliveryTime,
                 IsStorePickup = req.IsStorePickup,
                 ShippingFee = req.ShippingFee,
                 TotalAmount = totalAmount,
-                FinalAmount = totalAmount + req.ShippingFee,
+                FinalAmount = totalAmount + req.ShippingFee - discountAmount,
+                VoucherCode = appliedVoucher?.Code,
+                DiscountAmount = discountAmount,
                 IsPaid = false,
                 CreatedAt = DateTime.UtcNow,
                 Items = orderItems
@@ -128,10 +164,8 @@ public class OrdersController : ControllerBase
                 await _db.Products
                     .Where(p => p.Id == item.ProductId)
                     .ExecuteUpdateAsync(s => s
-                        .SetProperty(p => p.Stock,
-                            p => p.Stock - item.Quantity)
-                        .SetProperty(p => p.SoldCount,
-                            p => p.SoldCount + item.Quantity));
+                        .SetProperty(p => p.Stock, p => p.Stock - item.Quantity)
+                        .SetProperty(p => p.SoldCount, p => p.SoldCount + item.Quantity));
             }
 
             var summary = new OrderSummaryDto(
@@ -148,9 +182,11 @@ public class OrdersController : ControllerBase
                     i.UnitPrice,
                     i.Quantity)));
 
-            // ===== Trả về thông tin QR nếu chọn thanh toán QR hoặc ZaloPay =====
+            // ===== Push SignalR Event =====
+            await _hubContext.Clients.All.SendAsync("OrderCreated", summary);
+
+            // ===== Trả về thông tin QR =====
             object? qrInfo = null;
-            object? zaloPayInfo = null;
 
             if (req.PaymentMethod == "QrCode")
             {
@@ -161,32 +197,16 @@ public class OrdersController : ControllerBase
                     accountNumber = QrAccountNumber,
                     accountName = QrAccountName,
                     amount = qrAmount,
-                    description = $"DH {order.OrderCode}",
+                    description = order.OrderCode, // Gán mã đơn làm nội dung chuyển tiền
                     orderCode = order.OrderCode,
                     orderId = order.Id
-                };
-            }
-            else if (req.PaymentMethod == "ZaloPay")
-            {
-                var zpResult = await _zaloPay.CreateOrderAsync(order.OrderCode, order.FinalAmount, $"Thanh toán đơn hàng {order.OrderCode}");
-                zaloPayInfo = new
-                {
-                    success = zpResult.Success,
-                    orderUrl = zpResult.OrderUrl,
-                    qrCode = zpResult.QrCode,
-                    appTransId = zpResult.AppTransId,
-                    message = zpResult.Message,
-                    orderCode = order.OrderCode,
-                    orderId = order.Id,
-                    amount = (long)order.FinalAmount
                 };
             }
 
             return Ok(new
             {
                 orderSummary = summary,
-                qrInfo,
-                zaloPayInfo
+                qrInfo
             });
         }
         catch (Exception ex)
@@ -196,10 +216,7 @@ public class OrdersController : ControllerBase
             if (stockDecremented)
                 await _inventory.RestoreStockAsync(stockItems);
 
-            return StatusCode(500, new
-            {
-                message = "Lỗi hệ thống khi tạo đơn hàng."
-            });
+            return StatusCode(500, new { message = "Lỗi hệ thống khi tạo đơn hàng." });
         }
     }
 
@@ -238,14 +255,25 @@ public class OrdersController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var isAdmin = User.IsInRole("Admin");
+        var isStaff = User.IsInRole("Staff");
+        
+        _logger.LogInformation($"[GetOrder] id: {id}, userId: {userId}, isAdmin: {isAdmin}, isStaff: {isStaff}");
 
         var order = await _db.Orders
             .Include(o => o.Items)
-            .FirstOrDefaultAsync(o =>
-                o.Id == id && (isAdmin || o.UserId == userId));
-
+            .FirstOrDefaultAsync(o => o.Id == id);
+            
         if (order is null)
+        {
+            _logger.LogWarning($"[GetOrder] Order {id} not found.");
             return NotFound();
+        }
+        
+        if (!isAdmin && order.UserId != userId && (!isStaff || order.StaffId != userId))
+        {
+            _logger.LogWarning($"[GetOrder] Forbidden. Order UserId: {order.UserId}, StaffId: {order.StaffId}, Request UserId: {userId}");
+            return Forbid();
+        }
 
         var dto = new OrderDetailDto(
             order.Id,
@@ -260,8 +288,10 @@ public class OrdersController : ControllerBase
             order.ShippingFee,
             order.TotalAmount,
             order.FinalAmount,
-            order.IsPaid,
+            (bool?)order.IsPaid ?? false,
             order.VnpayTransactionId,
+            order.Latitude,
+            order.Longitude,
             order.Items.Select(i => new CartItemDto(
                 i.ProductId,
                 i.ProductName,
@@ -279,13 +309,22 @@ public class OrdersController : ControllerBase
     public async Task<ActionResult<object>> GetAllOrders(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] string? status = null)
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null)
     {
         var query = _db.Orders.AsQueryable();
 
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<OrderStatus>(status, out var parsedStatus))
         {
             query = query.Where(o => o.Status == parsedStatus);
+        }
+
+        if (!string.IsNullOrEmpty(search))
+        {
+            query = query.Where(o => 
+                o.OrderCode.Contains(search) || 
+                o.ReceiverName.Contains(search) || 
+                o.ReceiverPhone.Contains(search));
         }
 
         var total = await query.CountAsync();
@@ -303,6 +342,7 @@ public class OrdersController : ControllerBase
                 o.ReceiverPhone,
                 o.FinalAmount,
                 IsPaid = (bool?)o.IsPaid ?? false,
+                o.StaffId,
                 o.CreatedAt
             })
             .ToListAsync();
@@ -347,12 +387,14 @@ public class OrdersController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        await _hubContext.Clients.All.SendAsync("OrderCancelled", id);
+
         return Ok(new { message = "Huỷ đơn hàng thành công" });
     }
 
     // PUT /api/orders/{id}/status
     [HttpPut("{id:int}/status")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Staff")]
     public async Task<ActionResult> UpdateStatus(
         int id,
         [FromBody] UpdateOrderStatusRequest req)
@@ -366,6 +408,34 @@ public class OrdersController : ControllerBase
             return BadRequest(new { message = "Status không hợp lệ." });
 
         order.Status = newStatus;
+
+        await _db.SaveChangesAsync();
+
+        await _hubContext.Clients.All.SendAsync("OrderStatusChanged", new { Id = id, Status = newStatus.ToString() });
+
+        return NoContent();
+    }
+
+    // PUT /api/orders/bulk-status
+    [HttpPut("bulk-status")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> BulkUpdateStatus(
+        [FromBody] BulkUpdateOrderStatusRequest req)
+    {
+        if (!Enum.TryParse<OrderStatus>(req.Status, out var newStatus))
+            return BadRequest(new { message = "Status không hợp lệ." });
+
+        if (req.OrderIds == null || !req.OrderIds.Any())
+            return BadRequest(new { message = "Không có đơn hàng nào được chọn." });
+
+        var orders = await _db.Orders
+            .Where(o => req.OrderIds.Contains(o.Id))
+            .ToListAsync();
+
+        foreach (var order in orders)
+        {
+            order.Status = newStatus;
+        }
 
         await _db.SaveChangesAsync();
 
@@ -391,124 +461,164 @@ public class OrdersController : ControllerBase
         return Ok(new { success = true, message = "Xác nhận đã thanh toán thành công!" });
     }
 
-    // POST /api/orders/webhook/casso — Casso.vn tự động gọi khi có tiền vào tài khoản VCB
-    [HttpPost("webhook/casso")]
-    [AllowAnonymous]
-    public async Task<IActionResult> CassoWebhook(
-        [FromBody] CassoWebhookRequest req,
-        [FromHeader(Name = "secure-token")] string? secureToken)
+    // GET /api/orders/staff-members
+    [HttpGet("staff-members")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<IEnumerable<object>>> GetStaffMembers()
     {
-        // Xác thực webhook bằng Secure Token (cấu hình trên Casso dashboard)
-        var configToken = _config["Casso:WebhookToken"];
-
-        if (!string.IsNullOrEmpty(configToken) &&
-            !string.Equals(secureToken, configToken, StringComparison.Ordinal))
+        var staffUsers = await _userManager.GetUsersInRoleAsync("Staff");
+        var result = staffUsers.Select(u => new
         {
-            _logger.LogWarning("Casso Webhook: Token không hợp lệ");
-            return Unauthorized(new { message = "Token không hợp lệ" });
-        }
-
-        if (req.Data == null || req.Data.Count == 0)
-            return Ok(new { success = true, message = "Không có giao dịch nào." });
-
-        var confirmedCount = 0;
-
-        foreach (var txn in req.Data)
-        {
-            // Chỉ xử lý giao dịch tiền VÀO (amount > 0)
-            if (txn.Amount <= 0) continue;
-
-            var description = txn.Description ?? "";
-            _logger.LogInformation(
-                "Casso Webhook: Nhận giao dịch Amount={Amount}, Description={Description}",
-                txn.Amount, description);
-
-            // Tìm đơn hàng chưa thanh toán có mã trùng với nội dung chuyển khoản
-            var unpaidOrders = await _db.Orders
-                .Where(o => !o.IsPaid)
-                .ToListAsync();
-
-            var matchedOrder = unpaidOrders.FirstOrDefault(o =>
-                description.Contains(o.OrderCode, StringComparison.OrdinalIgnoreCase));
-
-            if (matchedOrder != null)
-            {
-                matchedOrder.IsPaid = true;
-                matchedOrder.Status = OrderStatus.Processing;
-                await _db.SaveChangesAsync();
-                confirmedCount++;
-                _logger.LogInformation(
-                    "Casso Webhook: Đã tự động xác nhận đơn hàng {OrderCode} — {Amount}đ",
-                    matchedOrder.OrderCode, txn.Amount);
-            }
-        }
-
-        return Ok(new { success = true, message = $"Đã xử lý {confirmedCount} đơn hàng." });
+            u.Id,
+            u.FullName,
+            u.Email,
+            u.Phone
+        });
+        return Ok(result);
     }
 
-    // POST /api/orders/webhook/zalopay
-    [HttpPost("webhook/zalopay")]
-    [AllowAnonymous]
-    public async Task<IActionResult> ZaloPayCallback([FromBody] System.Text.Json.JsonElement body)
+    // PUT /api/orders/{id}/assign
+    [HttpPut("{id:int}/assign")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> AssignStaff(int id, [FromBody] string staffId)
     {
+        var order = await _db.Orders.FindAsync(id);
+        if (order == null) return NotFound();
+
+        var staff = await _userManager.FindByIdAsync(staffId);
+        if (staff == null) return BadRequest("Nhân viên không tồn tại.");
+
+        order.StaffId = staffId;
+        order.Status = OrderStatus.Processing; // or Keep as is?
+        await _db.SaveChangesAsync();
+
+        await _hubContext.Clients.All.SendAsync("OrderStatusChanged", new { Id = order.Id, Status = order.Status.ToString(), StaffId = staffId });
+
+        return NoContent();
+    }
+
+    // GET /api/orders/staff
+    [HttpGet("staff")]
+    [Authorize(Roles = "Staff")]
+    public async Task<ActionResult<object>> GetOrdersForStaff(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var staffId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        var query = _db.Orders
+            .Where(o => o.StaffId == staffId)
+            .AsQueryable();
+
+        var total = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(o => o.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(o => new
+            {
+                o.Id,
+                o.OrderCode,
+                Status = o.Status.ToString(),
+                o.ReceiverName,
+                o.ReceiverPhone,
+                o.ReceiverAddress,
+                o.Latitude,
+                o.Longitude,
+                o.FinalAmount,
+                o.IsPaid,
+                o.CreatedAt
+            })
+            .ToListAsync();
+
+        return Ok(new
+        {
+            Total = total,
+            Page = page,
+            PageSize = pageSize,
+            Items = items
+        });
+    }
+
+    // 🟢 HÀM NHẬN WEBHOOK TỪ SEPAY (ĐÃ CHUẨN HÓA KHỚP MÃ ĐƠN KHÔNG PHÂN BIỆT GẠCH NGANG) 🟢
+    [HttpPost("/api/webhook/sepay")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SePayWebhook([FromBody] JsonElement body)
+    {
+        Console.WriteLine("\n================ SEPAY WEBHOOK REQUEST ================");
+        Console.WriteLine(body.GetRawText());
+        Console.WriteLine("=======================================================\n");
+
         try
         {
-            _logger.LogInformation("ZaloPay Callback Body: {Body}", body.GetRawText());
-            var dataStr = body.GetProperty("data").GetString();
-            var reqMac = body.GetProperty("mac").GetString();
+            string content = "";
+            decimal amount = 0;
 
-            if (dataStr != null && reqMac != null && _zaloPay.VerifyCallback(dataStr, reqMac))
+            JsonElement targetElement = body;
+            if (body.TryGetProperty("data", out var dataObj) && dataObj.ValueKind == JsonValueKind.Object)
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(dataStr);
-                var root = doc.RootElement;
-                var appTransId = root.GetProperty("app_trans_id").GetString();
-
-                if (!string.IsNullOrEmpty(appTransId))
-                {
-                    var orders = await _db.Orders.Where(o => !o.IsPaid).ToListAsync();
-                    var matchedOrder = orders.FirstOrDefault(o => appTransId.Contains(o.OrderCode.Replace("-", ""), StringComparison.OrdinalIgnoreCase));
-                    if (matchedOrder != null)
-                    {
-                        matchedOrder.IsPaid = true;
-                        matchedOrder.Status = OrderStatus.Processing;
-                        await _db.SaveChangesAsync();
-                    }
-                }
-
-                return Ok(new { return_code = 1, return_message = "success" });
+                targetElement = dataObj;
             }
 
-            return Ok(new { return_code = -1, return_message = "mac not equal" });
+            if (targetElement.TryGetProperty("transaction_content", out var tcProp))
+                content = tcProp.GetString() ?? "";
+            else if (targetElement.TryGetProperty("content", out var cProp))
+                content = cProp.GetString() ?? "";
+            else if (targetElement.TryGetProperty("description", out var dProp))
+                content = dProp.GetString() ?? "";
+
+            if (targetElement.TryGetProperty("amount_in", out var aiProp))
+                amount = aiProp.GetDecimal();
+            else if (targetElement.TryGetProperty("transferAmount", out var taProp))
+                amount = taProp.GetDecimal();
+            else if (targetElement.TryGetProperty("amount", out var amProp))
+                amount = amProp.GetDecimal();
+
+            Console.WriteLine($"-> Trích xuất thành công: Nội dung='{content}', Số tiền={amount}");
+
+            if (!string.IsNullOrEmpty(content))
+            {
+                // Chuẩn hóa nội dung SePay: viết hoa, xóa sạch dấu gạch ngang và khoảng trắng
+                string normalizedContent = content.Replace("-", "").Replace(" ", "").ToUpper();
+
+                var pendingOrders = await _db.Orders.Where(o => o.IsPaid != true).ToListAsync();
+                var order = pendingOrders.FirstOrDefault(o => 
+                    normalizedContent.Contains(o.OrderCode.Replace("-", "").ToUpper())
+                );
+
+                if (order != null)
+                {
+                    Console.WriteLine($"-> Đã tìm thấy đơn hàng trong DB: {order.OrderCode} (Cần thanh toán: {order.FinalAmount})");
+
+                    if (amount >= order.FinalAmount)
+                    {
+                        order.IsPaid = true;
+                        order.Status = OrderStatus.Processing;
+                        await _db.SaveChangesAsync();
+                        
+                        Console.WriteLine($"✅ [GẠCH NỢ THÀNH CÔNG] Đơn hàng {order.OrderCode} đã được chuyển sang trạng thái Processing!");
+                        return Ok(new { success = true, message = "Gạch nợ thành công" });
+                    }
+                    else
+                    {
+                        Console.WriteLine($"⚠️ Số tiền chuyển ({amount}) ít hơn số tiền cần thanh toán ({order.FinalAmount}).");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"⚠️ Không tìm thấy đơn hàng nào khớp với nội dung đã chuẩn hóa từ: '{content}'");
+                }
+            }
+
+            return Ok(new { success = true, message = "Đã nhận webhook nhưng không khớp đơn" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi xử lý ZaloPay Callback");
-            return Ok(new { return_code = 0, return_message = ex.Message });
+            Console.WriteLine($"🔥 LỖI XỬ LÝ WEBHOOK: {ex.Message}");
+            return Ok(new { success = false, message = ex.Message });
         }
     }
 }
-
 public record UpdateOrderStatusRequest(string Status);
-
-// DTO cho Casso.vn Webhook
-public class CassoWebhookRequest
-{
-    public int Error { get; set; }
-    public List<CassoTransaction> Data { get; set; } = new();
-}
-
-public class CassoTransaction
-{
-    public long Id { get; set; }
-    public string? Tid { get; set; }
-    public string? Description { get; set; }
-    public decimal Amount { get; set; }
-    public decimal CusumBalance { get; set; }
-    public string? When { get; set; }
-    public string? BankSubAccId { get; set; }
-    public string? SubAccId { get; set; }
-    public string? CorresponsiveName { get; set; }
-    public string? CorresponsiveAccount { get; set; }
-    public string? CorresponsiveBankId { get; set; }
-    public string? CorresponsiveBankName { get; set; }
-}
+public record BulkUpdateOrderStatusRequest(List<int> OrderIds, string Status);

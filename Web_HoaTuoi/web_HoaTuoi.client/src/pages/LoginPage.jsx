@@ -5,6 +5,7 @@ import { Toaster } from "react-hot-toast"
 import { useAuthStore } from "../store/authStore"
 import { authApi } from "../api/auth"
 import toast from "react-hot-toast"
+import { Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
     const navigate = useNavigate()
@@ -22,6 +23,7 @@ export default function LoginPage() {
     })
 
     const [loading, setLoading] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
 
     useEffect(() => {
         setIsRegister(location.pathname === "/dang-ky")
@@ -82,7 +84,11 @@ export default function LoginPage() {
                 login(data)
                 toast.success("Chào mừng bạn quay trở lại!")
 
-                const from = new URLSearchParams(location.search).get('from') || "/"
+                let defaultRedirect = "/";
+                if (data.user?.role === "Admin") defaultRedirect = "/admin";
+                else if (data.user?.role === "Staff") defaultRedirect = "/nhan-vien";
+
+                const from = new URLSearchParams(location.search).get('from') || defaultRedirect;
                 navigate(from, { replace: true })
             }
         } catch (err) {
@@ -101,7 +107,13 @@ export default function LoginPage() {
             const data = await authApi.googleLogin(credentialResponse.credential)
             login(data)
             toast.success("Đăng nhập Google thành công")
-            navigate(data.role === "Admin" ? "/admin" : "/")
+            
+            let defaultRedirect = "/";
+            if (data.user?.role === "Admin") defaultRedirect = "/admin";
+            else if (data.user?.role === "Staff") defaultRedirect = "/nhan-vien";
+
+            const from = new URLSearchParams(location.search).get('from') || defaultRedirect;
+            navigate(from, { replace: true })
         } catch (err) {
             toast.error("Lỗi Google: Đảm bảo Origin đã được cấp quyền")
         } finally {
@@ -112,7 +124,7 @@ export default function LoginPage() {
 
     return (
         <div className="min-h-screen relative flex items-center justify-center overflow-hidden font-inter p-4">
-            <Toaster position="top-right" toastOptions={{ duration: 2000 }} />
+            <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
             {/* Background */}
             <div 
                 className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat scale-105"
@@ -213,18 +225,33 @@ export default function LoginPage() {
                             <div className="flex justify-between items-center px-1">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mật khẩu</label>
                                 {!isRegister && (
-                                    <button type="button" className="text-[9px] font-bold text-pink-500 uppercase hover:text-pink-600">Quên mật khẩu?</button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => navigate("/quen-mat-khau")}
+                                        className="text-[9px] font-bold text-pink-500 uppercase hover:text-pink-600"
+                                    >
+                                        Quên mật khẩu?
+                                    </button>
                                 )}
                             </div>
-                            <input
-                                name="password"
-                                type="password"
-                                placeholder="••••••••"
-                                value={form.password}
-                                onChange={handleChange}
-                                className="w-full px-3.5 py-2.5 bg-white border border-pink-50 rounded-xl focus:ring-2 focus:ring-pink-100 focus:border-pink-300 outline-none transition-all text-sm font-medium"
-                                required
-                            />
+                            <div className="relative">
+                                <input
+                                    name="password"
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="••••••••"
+                                    value={form.password}
+                                    onChange={handleChange}
+                                    className="w-full px-3.5 py-2.5 bg-white border border-pink-50 rounded-xl focus:ring-2 focus:ring-pink-100 focus:border-pink-300 outline-none transition-all text-sm font-medium pr-10"
+                                    required
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
                             {isRegister && <p className="text-[9px] text-gray-400 ml-1 mt-1">* Tổi thiểu 6 ký tự</p>}
                         </div>
 
