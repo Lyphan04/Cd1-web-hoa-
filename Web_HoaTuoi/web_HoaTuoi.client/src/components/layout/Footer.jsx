@@ -31,10 +31,16 @@ export default function Footer() {
                     </p>
 
                     <div className="space-y-2 text-sm">
-                        <div className="flex items-center gap-2">
+                        <a
+                            href="https://www.google.com/maps/dir/?api=1&destination=C2+Picity+High+Park,+Phường+Thới+An,+Quận+12,+Hồ+Chí+Minh"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 hover:text-pink-400 transition-colors cursor-pointer"
+                            title="Bấm để chỉ đường đến cửa hàng"
+                        >
                             <MapPin size={14} />
-                            <span>TP. Hồ Chí Minh, Việt Nam</span>
-                        </div>
+                            <span>C2 Picity High Park, P. Thới An, Q.12, TP. HCM</span>
+                        </a>
 
                         <div className="flex items-center gap-2">
                             <Phone size={14} />
