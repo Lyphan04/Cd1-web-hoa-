@@ -1,4 +1,4 @@
-﻿/**
+/**
  * imageResolver.ts
  * Convert đường dẫn ảnh từ DB -> ảnh trong assets
  */
@@ -17,8 +17,8 @@ export function resolveImage(
     if (!dbPath)
         return fallback ?? "https://placehold.co/600x600?text=Flower"
 
-    // Nếu là URL ngoài
-    if (dbPath.startsWith("http"))
+    // Nếu là URL ngoài hoặc Base64 data URL
+    if (dbPath.startsWith("http") || dbPath.startsWith("data:"))
         return dbPath
 
     // Lấy tên file

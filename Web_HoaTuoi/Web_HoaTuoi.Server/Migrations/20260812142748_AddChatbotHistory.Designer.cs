@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Web_HoaTuoi.Server.Data;
 
@@ -11,9 +12,11 @@ using Web_HoaTuoi.Server.Data;
 namespace Web_hoatuoi.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260812142748_AddChatbotHistory")]
+    partial class AddChatbotHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -277,10 +280,6 @@ namespace Web_hoatuoi.Server.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -412,9 +411,6 @@ namespace Web_hoatuoi.Server.Migrations
                     b.Property<DateTime?>("DeliveryTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal>("DiscountAmount")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("FinalAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -424,12 +420,6 @@ namespace Web_hoatuoi.Server.Migrations
 
                     b.Property<bool>("IsStorePickup")
                         .HasColumnType("bit");
-
-                    b.Property<double?>("Latitude")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("Longitude")
-                        .HasColumnType("float");
 
                     b.Property<string>("MessageCard")
                         .HasColumnType("nvarchar(max)");
@@ -456,9 +446,6 @@ namespace Web_hoatuoi.Server.Migrations
                     b.Property<decimal>("ShippingFee")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("StaffId")
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -472,12 +459,7 @@ namespace Web_hoatuoi.Server.Migrations
                     b.Property<string>("VnpayTransactionId")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("VoucherCode")
-                        .HasColumnType("nvarchar(max)");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("StaffId");
 
                     b.HasIndex("UserId");
 
@@ -798,12 +780,6 @@ namespace Web_hoatuoi.Server.Migrations
                     b.Property<bool>("IsDefault")
                         .HasColumnType("bit");
 
-                    b.Property<double?>("Latitude")
-                        .HasColumnType("float");
-
-                    b.Property<double?>("Longitude")
-                        .HasColumnType("float");
-
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -994,17 +970,9 @@ namespace Web_hoatuoi.Server.Migrations
 
             modelBuilder.Entity("Web_HoaTuoi.Server.Models.Order", b =>
                 {
-                    b.HasOne("Web_HoaTuoi.Server.Models.AppUser", "Staff")
-                        .WithMany()
-                        .HasForeignKey("StaffId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("Web_HoaTuoi.Server.Models.AppUser", "User")
                         .WithMany("Orders")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Staff");
+                        .HasForeignKey("UserId");
 
                     b.Navigation("User");
                 });

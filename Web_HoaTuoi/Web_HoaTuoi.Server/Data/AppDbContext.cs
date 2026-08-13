@@ -23,6 +23,8 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Voucher> Vouchers => Set<Voucher>();
     public DbSet<ShippingZone> ShippingZones => Set<ShippingZone>();
     public DbSet<UserAddress> UserAddresses => Set<UserAddress>();
+    public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -83,5 +85,18 @@ public class AppDbContext : IdentityDbContext<AppUser>
 // ── WishlistItem ──────────────────────────────────────
      builder.Entity<WishlistItem>()
             .HasIndex(w => new { w.UserId, w.ProductId }).IsUnique();
+
+        // ── ChatBot ───────────────────────────────────────────
+        builder.Entity<ChatSession>()
+            .HasMany(s => s.Messages)
+            .WithOne(m => m.ChatSession)
+            .HasForeignKey(m => m.ChatSessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<ChatSession>()
+            .HasOne(s => s.User)
+            .WithMany()
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

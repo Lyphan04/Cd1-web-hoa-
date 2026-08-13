@@ -112,10 +112,14 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient(); // Đăng ký IHttpClientFactory
 builder.Services.AddScoped<IVnPayService, VnPayService>();
 builder.Services.AddScoped<IZaloPayService, ZaloPayService>();
+sepay-update
 builder.Services.AddHostedService<SepayPollingService>();
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddTransient<IEmailSenderService, EmailSenderService>();
+
+builder.Services.AddScoped<Web_HoaTuoi.Server.Services.VectorDbService>();
+main
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -175,8 +179,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// ⚠️ QUAN TRỌNG: Tắt Https Redirection khi đang test với Ngrok
-// app.UseHttpsRedirection(); 
+
 
 // ⚠️ QUAN TRỌNG: Sử dụng Policy AllowAll để không bị chặn lỗi 403
 app.UseCors("AllowAll");
