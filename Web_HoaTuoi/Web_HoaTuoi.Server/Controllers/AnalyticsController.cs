@@ -9,122 +9,89 @@ namespace Web_HoaTuoi.Server.Controllers
     [ApiController]
     public class AnalyticsController : ControllerBase
     {
-        private readonly string _connectionString;
+        private readonly string _dwhConnectionString;
 
         public AnalyticsController(IConfiguration configuration)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection")!;
+            _dwhConnectionString = configuration.GetConnectionString("DwhConnection")!;
         }
 
-        // 1. Biểu đồ doanh thu: GET /api/analytics/revenue-chart
+        // 1. Biểu đồ doanh thu (Lấy từ HoaTuoi_DWH)
         [HttpGet("revenue-chart")]
-        public IActionResult GetRevenueChart([FromQuery] string type = "week")
+        public IActionResult GetRevenueChart([FromQuery] string type = "year")
         {
-            using var connection = new SqlConnection(_connectionString);
-            var now = DateTime.UtcNow;
+            using var connection = new SqlConnection(_dwhConnectionString);
             
-            if (type == "week")
+            // Lấy doanh thu theo tháng (để khớp yêu cầu "Doanh thu theo tháng" của đồ án)
+            var sql = @"
+                SELECT 
+                    dt.Month,
+                    SUM(fs.TotalAmount) AS Revenue
+                FROM Fact_Sales fs
+                JOIN Dim_Time dt ON fs.TimeKey = dt.TimeKey
+                GROUP BY dt.Month
+                ORDER BY dt.Month;";
+            
+            var data = connection.Query(sql).ToList();
+            
+            var result = Enumerable.Range(1, 12).Select(month => new
             {
-                var start = now.Date.AddDays(-6);
-                var sql = @"
-                    SELECT CreatedAt, FinalAmount
-                    FROM Orders
-                    WHERE (Status = 3 OR CAST(Status AS NVARCHAR(50)) = 'Completed') AND CreatedAt >= @start";
-                
-                var orders = connection.Query<(DateTime CreatedAt, decimal FinalAmount)>(sql, new { start }).ToList();
-                var grouped = orders.GroupBy(o => o.CreatedAt.Date)
-                    .Select(g => new { Label = g.Key.ToString("dd/MM"), Revenue = g.Sum(o => o.FinalAmount) })
-                    .ToList();
+                Label = $"Tháng {month}",
+                Revenue = data.FirstOrDefault(d => d.Month == month)?.Revenue ?? 0
+            }).ToList();
 
-                var result = Enumerable.Range(0, 7)
-                    .Select(i => start.AddDays(i))
-                    .Select(d => new
-                    {
-                        Label = d.ToString("dd/MM"),
-                        Revenue = grouped.FirstOrDefault(g => g.Label == d.ToString("dd/MM"))?.Revenue ?? 0
-                    }).ToList();
-
-                return Ok(result);
-            }
-            else if (type == "month")
-            {
-                var start = new DateTime(now.Year, now.Month, 1);
-                var daysInMonth = DateTime.DaysInMonth(now.Year, now.Month);
-                var sql = @"
-                    SELECT CreatedAt, FinalAmount
-                    FROM Orders
-                    WHERE (Status = 3 OR CAST(Status AS NVARCHAR(50)) = 'Completed') AND CreatedAt >= @start";
-                
-                var orders = connection.Query<(DateTime CreatedAt, decimal FinalAmount)>(sql, new { start }).ToList();
-                var grouped = orders.GroupBy(o => o.CreatedAt.Date)
-                    .Select(g => new { Label = g.Key.ToString("dd/MM"), Revenue = g.Sum(o => o.FinalAmount) })
-                    .ToList();
-
-                var result = Enumerable.Range(1, daysInMonth)
-                    .Select(day => new DateTime(now.Year, now.Month, day))
-                    .Select(d => new
-                    {
-                        Label = d.ToString("dd/MM"),
-                        Revenue = grouped.FirstOrDefault(g => g.Label == d.ToString("dd/MM"))?.Revenue ?? 0
-                    }).ToList();
-
-                return Ok(result);
-            }
-            else // year
-            {
-                var start = new DateTime(now.Year, 1, 1);
-                var sql = @"
-                    SELECT CreatedAt, FinalAmount
-                    FROM Orders
-                    WHERE (Status = 3 OR CAST(Status AS NVARCHAR(50)) = 'Completed') AND CreatedAt >= @start";
-                
-                var orders = connection.Query<(DateTime CreatedAt, decimal FinalAmount)>(sql, new { start }).ToList();
-                var grouped = orders.GroupBy(o => o.CreatedAt.Month)
-                    .Select(g => new { Label = $"Tháng {g.Key}", Revenue = g.Sum(o => o.FinalAmount) })
-                    .ToList();
-
-                var result = Enumerable.Range(1, 12)
-                    .Select(month => new
-                    {
-                        Label = $"Tháng {month}",
-                        Revenue = grouped.FirstOrDefault(g => g.Label == $"Tháng {month}")?.Revenue ?? 0
-                    }).ToList();
-
-                return Ok(result);
-            }
+            return Ok(result);
         }
 
-        // 2. API vinh danh sản phẩm: GET /api/analytics/top-products
+        // 2. Top hoa bán chạy (Lấy từ HoaTuoi_DWH)
         [HttpGet("top-products")]
         public IActionResult GetTopProducts()
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new SqlConnection(_dwhConnectionString);
             var sql = @"
                 SELECT TOP 5 
-                    od.ProductId,
-                    SUM(od.Quantity) AS TongSoLuongBan,
-                    SUM(od.Quantity * od.UnitPrice) AS TongDoanhThu
-                FROM OrderItems od
-                JOIN Orders o ON od.OrderId = o.Id
-                WHERE (o.Status = 3 OR CAST(o.Status AS NVARCHAR(50)) = 'Completed')
-                GROUP BY od.ProductId
-                ORDER BY TongSoLuongBan DESC;";
+                    dp.ProductKey AS productId,
+                    dp.ProductName AS productName,
+                    SUM(fs.Quantity) AS totalSold
+                FROM Fact_Sales fs
+                JOIN Dim_Product dp ON fs.ProductKey = dp.ProductKey
+                GROUP BY dp.ProductKey, dp.ProductName
+                ORDER BY totalSold DESC;";
             
             var data = connection.Query(sql);
             return Ok(data);
         }
 
-        // 3. API biểu đồ tròn trạng thái: GET /api/analytics/order-status
-        [HttpGet("order-status")]
-        public IActionResult GetOrderStatus()
+        // 3. Phân khúc khách hàng (Lấy từ HoaTuoi_DWH)
+        [HttpGet("customer-segments")]
+        public IActionResult GetCustomerSegments()
         {
-            using var connection = new SqlConnection(_connectionString);
+            using var connection = new SqlConnection(_dwhConnectionString);
             var sql = @"
+                WITH CustomerSpending AS (
+                    SELECT 
+                        dc.CustomerKey,
+                        SUM(fs.TotalAmount) AS TotalSpent
+                    FROM Fact_Sales fs
+                    JOIN Dim_Customer dc ON fs.CustomerKey = dc.CustomerKey
+                    WHERE dc.CustomerKey != -1
+                    GROUP BY dc.CustomerKey
+                )
                 SELECT 
-                    Status,
-                    COUNT(Id) AS SoLuong
-                FROM Orders
-                GROUP BY Status;";
+                    CASE 
+                        WHEN TotalSpent >= 5000000 THEN N'Khách VIP (>5tr)'
+                        WHEN TotalSpent >= 2000000 THEN N'Khách quen (2-5tr)'
+                        ELSE N'Khách phổ thông (<2tr)'
+                    END AS segment,
+                    COUNT(CustomerKey) AS count
+                FROM CustomerSpending
+                GROUP BY 
+                    CASE 
+                        WHEN TotalSpent >= 5000000 THEN N'Khách VIP (>5tr)'
+                        WHEN TotalSpent >= 2000000 THEN N'Khách quen (2-5tr)'
+                        ELSE N'Khách phổ thông (<2tr)'
+                    END
+                ORDER BY count DESC;";
             
             var data = connection.Query(sql);
             return Ok(data);
