@@ -79,11 +79,11 @@ export default function ProductListPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 capitalize">{pageTitle}</h1>
-          <p className="text-sm text-gray-500 mt-1">{total} sản phẩm</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 capitalize">{pageTitle}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{total} sản phẩm</p>
         </div>
         <button onClick={() => setFilterOpen(v => !v)}
-          className="md:hidden flex items-center gap-2 btn-outline text-sm py-2">
+          className="md:hidden flex items-center gap-2 btn-outline text-sm py-2 dark:text-gray-200">
           <SlidersHorizontal size={16} /> Bộ lọc
         </button>
       </div>
@@ -91,14 +91,14 @@ export default function ProductListPage() {
       <div className="flex gap-6">
         {/* Filter sidebar */}
         <aside className={`
-          ${filterOpen ? 'fixed inset-0 z-40 bg-white p-4 overflow-y-auto' : 'hidden'}
+          ${filterOpen ? 'fixed inset-0 z-40 bg-white dark:bg-[#121212] p-4 overflow-y-auto' : 'hidden'}
     md:block md:static md:z-auto md:bg-transparent md:p-0
           w-full md:w-64 flex-shrink-0
         `}>
           {filterOpen && (
        <div className="flex items-center justify-between mb-4 md:hidden">
-    <span className="font-semibold text-gray-900">Bộ lọc</span>
-   <button onClick={() => setFilterOpen(false)}><X size={20} /></button>
+    <span className="font-semibold text-gray-900 dark:text-gray-100">Bộ lọc</span>
+   <button onClick={() => setFilterOpen(false)} className="dark:text-gray-300"><X size={20} /></button>
     </div>
           )}
           <FlowerFilter filters={filters} onChange={handleFilterChange} />

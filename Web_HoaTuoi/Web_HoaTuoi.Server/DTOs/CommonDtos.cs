@@ -63,6 +63,21 @@ public record ChangePasswordRequest(
     string NewPassword
 );
 
+public record ForgotPasswordRequest(
+    string Email
+);
+
+public record VerifyOtpRequest(
+    string Email,
+    string OtpCode
+);
+
+public record ResetPasswordRequest(
+    string Email,
+    string Token,
+    string NewPassword
+);
+
 // â”€â”€ VOUCHER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 public record ValidateVoucherRequest(string Code, decimal OrderAmount);

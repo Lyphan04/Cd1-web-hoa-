@@ -15,32 +15,39 @@ public static class DbSeeder
         RoleManager<IdentityRole> roleManager)
     {
         // ── 1. Roles ──────────────────────────────────────────────
-        foreach (var role in new[] { "Admin", "Customer" })
+        foreach (var role in new[] { "Admin", "Customer", "Staff" })
         {
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole(role));
         }
 
-        // ── 2. Admin user ─────────────────────────────────────────
+        // ── 2. Admin & Staff users ────────────────────────────────
         const string adminEmail = "admin@hoatuoi.vn";
         var adminUser = await userManager.FindByEmailAsync(adminEmail);
         if (adminUser is null)
         {
-            var admin = new AppUser
-            {
-                UserName = adminEmail,
-                Email = adminEmail,
-                FullName = "Quản trị viên",
-                EmailConfirmed = true
-            };
+            var admin = new AppUser { UserName = adminEmail, Email = adminEmail, FullName = "Quản trị viên", EmailConfirmed = true };
             await userManager.CreateAsync(admin, "00000000");
             await userManager.AddToRoleAsync(admin, "Admin");
         }
         else
         {
-            // Đảm bảo mật khẩu luôn là 00000000 theo yêu cầu
             await userManager.RemovePasswordAsync(adminUser);
             await userManager.AddPasswordAsync(adminUser, "00000000");
+        }
+
+        const string staffEmail = "staff@hoatuoi.vn";
+        var staffUser = await userManager.FindByEmailAsync(staffEmail);
+        if (staffUser is null)
+        {
+            var staff = new AppUser { UserName = staffEmail, Email = staffEmail, FullName = "Nhân viên giao hàng", EmailConfirmed = true, Phone = "0988888888" };
+            await userManager.CreateAsync(staff, "00000000");
+            await userManager.AddToRoleAsync(staff, "Staff");
+        }
+        else
+        {
+            await userManager.RemovePasswordAsync(staffUser);
+            await userManager.AddPasswordAsync(staffUser, "00000000");
         }
 
         // ── 3. System Settings ──────────────────────────────────

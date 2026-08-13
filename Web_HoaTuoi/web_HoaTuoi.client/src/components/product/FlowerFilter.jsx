@@ -44,14 +44,14 @@ export default function ProductFilter({ filters = {}, onChange }) {
     ];
 
     return (
-        <aside className="space-y-4 bg-white rounded-2xl border border-gray-100 p-4 sticky top-20 shadow-sm">
+        <aside className="space-y-6 bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-slate-800 p-4 sticky top-20 shadow-sm">
 
             {/* Sắp xếp */}
             <FilterSection title="Sắp xếp">
                 <select
                     value={filters.sortBy ?? "newest"}
                     onChange={(e) => onChange({ sortBy: e.target.value })}
-                    className="input text-sm w-full"
+                    className="input text-sm w-full bg-transparent dark:bg-slate-900 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 rounded-lg py-2"
                 >
                     {sortOptions.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -68,7 +68,7 @@ export default function ProductFilter({ filters = {}, onChange }) {
                     {flowerTypes.map((f) => (
                         <label
                             key={f.value}
-                            className={`flex items-center gap-2 text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all cursor-pointer ${filters.categorySlug === f.value ? 'bg-pink-50 border-pink-200 text-pink-700' : 'border-transparent hover:bg-gray-50 text-gray-600'}`}
+                            className={`flex items-center gap-2 text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all cursor-pointer ${filters.categorySlug === f.value ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-400'}`}
                         >
                             <input
                                 type="radio"
@@ -85,7 +85,7 @@ export default function ProductFilter({ filters = {}, onChange }) {
                         </label>
                     ))}
 
-                    <label className={`flex items-center gap-2 text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all cursor-pointer ${!filters.categorySlug ? 'bg-gray-100 border-gray-200 text-gray-900' : 'border-transparent hover:bg-gray-50 text-gray-400'}`}>
+                    <label className={`flex items-center gap-2 text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all cursor-pointer ${!filters.categorySlug ? 'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-900 dark:text-gray-100' : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400'}`}>
                         <input
                             type="radio"
                             name="category"
@@ -107,7 +107,7 @@ export default function ProductFilter({ filters = {}, onChange }) {
                     {occasions.map((o) => (
                         <label
                             key={o}
-                            className={`flex items-center gap-2 text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all cursor-pointer ${filters.occasion === o ? 'bg-pink-50 border-pink-200 text-pink-700' : 'border-transparent hover:bg-gray-50 text-gray-600'}`}
+                            className={`flex items-center gap-2 text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all cursor-pointer ${filters.occasion === o ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-200 dark:border-pink-800 text-pink-700 dark:text-pink-400' : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-400'}`}
                         >
                             <input
                                 type="radio"
@@ -124,7 +124,7 @@ export default function ProductFilter({ filters = {}, onChange }) {
                         </label>
                     ))}
 
-                    <label className={`flex items-center gap-2 text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all cursor-pointer ${!filters.occasion ? 'bg-gray-100 border-gray-200 text-gray-900' : 'border-transparent hover:bg-gray-50 text-gray-400'}`}>
+                    <label className={`flex items-center gap-2 text-[11px] font-medium py-1.5 px-2 rounded-lg border transition-all cursor-pointer ${!filters.occasion ? 'bg-gray-100 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-900 dark:text-gray-100' : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-400'}`}>
                         <input
                             type="radio"
                             name="occasion"
@@ -139,19 +139,17 @@ export default function ProductFilter({ filters = {}, onChange }) {
                 </div>
             </FilterSection>
 
-
-
             {/* Clear filter */}
             <button
                 type="button"
                 onClick={() =>
                     onChange({
-                        flowerType: undefined,
+                        category: undefined,
                         occasion: undefined,
                         sortBy: "newest"
                     })
                 }
-                className="text-xs text-gray-400 hover:text-red-500 w-full"
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 w-full pt-2 border-t border-gray-100 dark:border-slate-800"
             >
                 Xóa tất cả bộ lọc
             </button>

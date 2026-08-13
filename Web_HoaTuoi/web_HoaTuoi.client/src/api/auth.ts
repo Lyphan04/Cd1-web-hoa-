@@ -39,4 +39,19 @@ export const authApi = {
         apiClient
             .put<{message: string}>('/auth/change-password', { currentPassword, newPassword })
             .then((r) => r.data),
+
+    forgotPassword: (email: string) =>
+        apiClient
+            .post<{message: string}>('/auth/forgot-password', { email })
+            .then((r) => r.data),
+
+    verifyResetOtp: (email: string, otpCode: string) =>
+        apiClient
+            .post<{message: string; resetToken: string}>('/auth/verify-reset-otp', { email, otpCode })
+            .then((r) => r.data),
+
+    resetPassword: (email: string, token: string, newPassword: string) =>
+        apiClient
+            .post<{message: string}>('/auth/reset-password', { email, token, newPassword })
+            .then((r) => r.data),
 };

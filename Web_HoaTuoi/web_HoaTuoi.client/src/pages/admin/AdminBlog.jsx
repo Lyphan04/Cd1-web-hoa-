@@ -31,8 +31,9 @@ export default function AdminBlog() {
   useEffect(() => { fetch(); }, [typeFilter]);
 
   function openEdit(p) {
-  setForm({ title: p.title, slug: p.slug, excerpt: p.excerpt ?? '', content: p.content ?? '', coverImageUrl: p.coverImageUrl ?? '', type: p.type, isPublished: p.isPublished });
+    setForm({ title: p.title, slug: p.slug, excerpt: p.excerpt ?? '', content: 'Đang tải nội dung...', coverImageUrl: p.coverImageUrl ?? '', type: p.type, isPublished: p.isPublished });
     setEditId(p.id); setModal('edit');
+    apiClient.get(`/blog/${p.slug}`).then(r => setForm(f => ({ ...f, content: r.data.content ?? '' })));
   }
 
   function handleChange(e) {

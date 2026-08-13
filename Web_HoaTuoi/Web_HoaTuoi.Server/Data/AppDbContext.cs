@@ -55,9 +55,21 @@ public class AppDbContext : IdentityDbContext<AppUser>
 
      // ── Order ─────────────────────────────────────────────
         builder.Entity<Order>()
-        .Property(o => o.TotalAmount).HasPrecision(18, 2);
+            .Property(o => o.TotalAmount).HasPrecision(18, 2);
         builder.Entity<Order>()
-  .Property(o => o.FinalAmount).HasPrecision(18, 2);
+            .Property(o => o.FinalAmount).HasPrecision(18, 2);
+        
+        builder.Entity<Order>()
+            .HasOne(o => o.User)
+            .WithMany(u => u.Orders)
+            .HasForeignKey(o => o.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<Order>()
+            .HasOne(o => o.Staff)
+            .WithMany()
+            .HasForeignKey(o => o.StaffId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // ── OrderItem ─────────────────────────────────────────
     builder.Entity<OrderItem>()

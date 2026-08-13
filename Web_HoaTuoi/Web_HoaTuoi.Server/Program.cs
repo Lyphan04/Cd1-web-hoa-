@@ -10,6 +10,7 @@ using StackExchange.Redis;
 using Web_HoaTuoi.Server.Data;
 using Web_HoaTuoi.Server.Models;
 using Web_HoaTuoi.Server.Services;
+using System.Text.Json.Serialization;
 
 // Nạp ưu tiên file .env.local
 try
@@ -81,34 +82,47 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// ── CORS ──────────────────────────────────────────────────
+// ── CORS (ĐÃ SỬA ĐỂ MỞ CỬA CHO NGROK & SEPAY) ──────────────
 builder.Services.AddCors(options =>
 {
+    // Giữ nguyên Policy cũ cho FE
     options.AddPolicy("AllowViteClient", policy =>
         policy
             .WithOrigins(
                 "https://localhost:61348",
                 "http://localhost:61348",
                 "http://localhost:5173",
-                "https://localhost:5173"
+                "https://localhost:5173",
+                "http://localhost:5174",
+                "https://localhost:5174"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
+            
+    // THÊM POLICY MỚI: Cho phép mọi thứ để nhận Webhook
+    options.AddPolicy("AllowAll", policy =>
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
 });
 
 // ── Controllers + Services + Swagger ─────────────────────
 builder.Services.AddHttpClient(); // Đăng ký IHttpClientFactory
 builder.Services.AddScoped<IVnPayService, VnPayService>();
 builder.Services.AddScoped<IZaloPayService, ZaloPayService>();
+builder.Services.AddHostedService<SepayPollingService>();
+
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddTransient<IEmailSenderService, EmailSenderService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.PropertyNamingPolicy =
-            System.Text.Json.JsonNamingPolicy.CamelCase;
-        options.JsonSerializerOptions.Converters.Add(
-            new System.Text.Json.Serialization.JsonStringEnumConverter());
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -144,6 +158,8 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
 app.UseDefaultFiles();
@@ -159,13 +175,18 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
-app.UseCors("AllowViteClient");
+// ⚠️ QUAN TRỌNG: Tắt Https Redirection khi đang test với Ngrok
+// app.UseHttpsRedirection(); 
+
+// ⚠️ QUAN TRỌNG: Sử dụng Policy AllowAll để không bị chặn lỗi 403
+app.UseCors("AllowAll");
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
+app.MapHub<Web_HoaTuoi.Server.Hubs.OrderHub>("/hubs/orders");
 app.MapFallbackToFile("/index.html");
 
 // ── Auto migrate + Seed khi khởi động ─────────────────────

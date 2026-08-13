@@ -48,6 +48,8 @@ public class UserAddressesController : ControllerBase
             FullName = req.FullName,
             PhoneNumber = req.PhoneNumber,
             AddressLine = req.AddressLine,
+            Latitude = req.Latitude,
+            Longitude = req.Longitude,
             IsDefault = isFirst || req.IsDefault,
             CreatedAt = DateTime.UtcNow
         };
@@ -105,4 +107,4 @@ public class UserAddressesController : ControllerBase
     }
 }
 
-public record CreateAddressDto(string FullName, string PhoneNumber, string AddressLine, bool IsDefault);
+public record CreateAddressDto(string FullName, string PhoneNumber, string AddressLine, bool IsDefault, double? Latitude, double? Longitude);

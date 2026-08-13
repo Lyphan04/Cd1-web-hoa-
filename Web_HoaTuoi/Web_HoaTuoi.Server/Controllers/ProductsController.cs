@@ -218,7 +218,7 @@ public class ProductsController : ControllerBase
     // UPDATE PRODUCT
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<ActionResult> UpdateProduct(int id, CreateProductRequest req)
+    public async Task<ActionResult> UpdateProduct(int id, [FromBody] CreateProductRequest req)
     {
         var product = await _db.Products.FindAsync(id);
 

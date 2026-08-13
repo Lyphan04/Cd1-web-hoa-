@@ -28,6 +28,12 @@ export default defineConfig({
                 target: 'http://127.0.0.1:5063',
                 secure: false,
                 changeOrigin: true
+            },
+            '/hubs': {
+                target: 'http://127.0.0.1:5063',
+                ws: true,
+                secure: false,
+                changeOrigin: true
             }
         }
     }

@@ -26,19 +26,29 @@ public class ProductFilterRequest
 public record CreateProductRequest(
     string Name,
     string Slug,
-    string Description,
+    string? Description,
     decimal Price,
     decimal? SalePrice,
     int CategoryId,
-    string Material,
-    string Style,
-    string Color,
+    string? Material,
+    string? Style,
+    string? Color,
     int Stock,
-    string MainImageUrl,
+    string? MainImageUrl,
     double? LengthCm,
     double? WidthCm,
     double? HeightCm,
     double? WeightKg
+);
+
+public record CreateCategoryRequest(
+    string Name,
+    string Slug,
+    string? Description,
+    string? ImageUrl,
+    string? Icon,
+    int? SortOrder,
+    int? ParentCategoryId
 );
 
 // ── RESPONSE ─────────────────────────────────────────────

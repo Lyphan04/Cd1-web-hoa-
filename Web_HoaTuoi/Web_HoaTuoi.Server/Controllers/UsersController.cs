@@ -86,4 +86,46 @@ public class UsersController : ControllerBase
 
         return Ok(new { total, items = result });
     }
+
+    public class CreateStaffRequest
+    {
+        public string Email { get; set; } = null!;
+        public string Password { get; set; } = null!;
+        public string FullName { get; set; } = null!;
+        public string? Phone { get; set; }
+    }
+
+    [HttpPost("staff")]
+    public async Task<ActionResult> CreateStaff([FromBody] CreateStaffRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
+            return BadRequest(new { message = "Email và Mật khẩu không được để trống." });
+
+        var existing = await _userManager.FindByEmailAsync(req.Email);
+        if (existing != null) return BadRequest(new { message = "Email đã tồn tại." });
+
+        var user = new AppUser
+        {
+            UserName = req.Email,
+            Email = req.Email,
+            FullName = req.FullName,
+            Phone = req.Phone,
+            PhoneNumber = req.Phone,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var result = await _userManager.CreateAsync(user, req.Password);
+        if (!result.Succeeded)
+            return BadRequest(new { message = string.Join(", ", result.Errors.Select(e => e.Description)) });
+
+        if (!await _context.Roles.AnyAsync(r => r.Name == "Staff"))
+        {
+            _context.Roles.Add(new IdentityRole("Staff"));
+            await _context.SaveChangesAsync();
+        }
+
+        await _userManager.AddToRoleAsync(user, "Staff");
+
+        return Ok(new { message = "Tạo tài khoản nhân viên thành công." });
+    }
 }

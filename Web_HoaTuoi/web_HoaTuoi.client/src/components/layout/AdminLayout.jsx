@@ -1,4 +1,4 @@
-import { NavLink, Outlet, Navigate } from "react-router-dom";
+import { NavLink, Outlet, Navigate, Link } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "../../store/authStore";
 import {
@@ -15,9 +15,13 @@ import {
     Ticket,
     Truck,
     Settings,
-    BarChart3
+    BarChart3,
+    Home,
+    Bell
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { HubConnectionBuilder } from '@microsoft/signalr';
+import toast from 'react-hot-toast';
 
 const adminNav = [
     { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -36,6 +40,53 @@ const adminNav = [
 export default function AdminLayout() {
     const { user, logout } = useAuthStore();
     const [collapsed, setCollapsed] = useState(false);
+    
+    // Notifications state
+    const [notifications, setNotifications] = useState([]);
+    const [showNotifs, setShowNotifs] = useState(false);
+    const unreadCount = notifications.filter(n => !n.isRead).length;
+
+    useEffect(() => {
+        if (!user || user.role !== "Admin") return;
+        
+        const connection = new HubConnectionBuilder()
+            .withUrl(`${import.meta.env.VITE_API_URL ?? '/api'}`.replace(/\/api$/, '') + '/hubs/orders')
+            .withAutomaticReconnect()
+            .build();
+
+        let isMounted = true;
+        connection.start().catch(err => {
+            // Ignore negotiation aborted errors in React StrictMode
+            if (isMounted && !err.toString().includes('stopped during negotiation')) {
+                console.error("SignalR Connection Error: ", err);
+            }
+        });
+
+        connection.on("OrderCreated", (orderSummary) => {
+            try {
+                const audio = new Audio('/ting.mp3');
+                audio.play().catch(()=>{});
+            } catch (e) {}
+
+            const newNotif = {
+                id: Date.now(),
+                title: "Đơn hàng mới!",
+                message: `Khách vừa đặt đơn ${orderSummary.orderCode} trị giá ${orderSummary.finalAmount.toLocaleString('vi-VN')}đ`,
+                time: new Date(),
+                isRead: false
+            };
+            setNotifications(prev => [newNotif, ...prev]);
+        });
+
+        return () => {
+            isMounted = false;
+            connection.stop();
+        };
+    }, [user]);
+
+    const markAllRead = () => {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    };
 
     if (!user || user.role !== "Admin") {
         return <Navigate to="/dang-nhap" replace />;
@@ -43,7 +94,7 @@ export default function AdminLayout() {
 
     return (
         <div className="flex min-h-screen bg-gray-50">
-            <Toaster position="top-right" toastOptions={{ duration: 200 }} />
+            <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
 
             {/* Sidebar */}
             <aside
@@ -106,6 +157,14 @@ export default function AdminLayout() {
                         </div>
                     )}
 
+                    <Link
+                        to="/"
+                        className="flex items-center gap-2 w-full px-3 py-2 mb-1 text-sm text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                    >
+                        <Home size={16} />
+                        {!collapsed && "Về trang chủ web"}
+                    </Link>
+
                     <button
                         onClick={logout}
                         className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-colors"
@@ -118,10 +177,61 @@ export default function AdminLayout() {
 
             {/* Main */}
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="h-16 bg-white border-b border-gray-100 flex items-center px-6">
+                <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 relative">
                     <h1 className="text-base font-semibold text-gray-800">
                         Quản trị Shop Hoa
                     </h1>
+
+                    {/* Notification Bell */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowNotifs(!showNotifs)}
+                            className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+                        >
+                            <Bell size={20} />
+                            {unreadCount > 0 && (
+                                <span className="absolute top-1 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white">
+                                    {unreadCount}
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Dropdown */}
+                        {showNotifs && (
+                            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                                <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                    <h3 className="font-bold text-gray-800">Thông báo</h3>
+                                    {unreadCount > 0 && (
+                                        <button onClick={markAllRead} className="text-xs text-blue-600 font-medium hover:underline">
+                                            Đánh dấu đã đọc
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="max-h-[60vh] overflow-y-auto">
+                                    {notifications.length === 0 ? (
+                                        <div className="p-8 text-center text-gray-400 text-sm">
+                                            Không có thông báo nào
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-gray-50">
+                                            {notifications.map(n => (
+                                                <div key={n.id} className={`p-4 transition-colors ${n.isRead ? 'bg-white' : 'bg-blue-50/30'}`}>
+                                                    <div className="flex items-start gap-3">
+                                                        <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${n.isRead ? 'bg-transparent' : 'bg-blue-500'}`} />
+                                                        <div>
+                                                            <p className="text-sm font-bold text-gray-900">{n.title}</p>
+                                                            <p className="text-sm text-gray-600 mt-0.5">{n.message}</p>
+                                                            <p className="text-xs text-gray-400 mt-1.5">{n.time.toLocaleTimeString('vi-VN')}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </header>
 
                 <main className="flex-1 p-6 overflow-auto">

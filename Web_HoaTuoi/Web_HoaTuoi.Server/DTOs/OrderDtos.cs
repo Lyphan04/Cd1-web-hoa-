@@ -22,6 +22,9 @@ public record CreateOrderRequest(
     DateTime? DeliveryTime,      // Thời gian nhận
     bool IsStorePickup,          // Lấy tại cửa hàng
     decimal ShippingFee,         // Phí vận chuyển
+    string? VoucherCode,         // Mã giảm giá
+    double? Latitude,            // Vị trí bản đồ giao hàng
+    double? Longitude,
     IEnumerable<CartItemDto> Items
 );
 
@@ -54,6 +57,8 @@ public record OrderDetailDto(
     decimal FinalAmount,
     bool IsPaid,
     string? VnpayTransactionId,
+    double? Latitude,
+    double? Longitude,
     IEnumerable<CartItemDto> Items,
     DateTime CreatedAt
 );

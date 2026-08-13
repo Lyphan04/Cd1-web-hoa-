@@ -1,8 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { GoogleOAuthProvider } from '@react-oauth/google'
+import { useEffect } from 'react'
+import { useThemeStore } from './store/themeStore'
 
 import CustomerLayout from './components/layout/CustomerLayout'
 import AdminLayout from './components/layout/AdminLayout'
+import StaffLayout from './components/layout/StaffLayout'
 import ScrollToTop from './components/common/ScrollToTop'
 
 import HomePage from './pages/HomePage'
@@ -12,6 +15,8 @@ import ProductDetailPage from './pages/ProductDetailPage'
 import CartPage from './pages/CartPage'
 import CheckoutPage from './pages/CheckoutPage'
 import LoginPage from './pages/LoginPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import WishlistPage from './pages/WishlistPage'
 import VnPayReturnPage from './pages/VnPayReturnPage'
 import BlogPage from './pages/BlogPage'
@@ -34,10 +39,17 @@ import AdminVouchers from './pages/admin/AdminVouchers'
 import AdminShipping from './pages/admin/AdminShipping'
 import AdminSettings from './pages/admin/AdminSettings'
 import AdminReports from './pages/admin/AdminReports'
+import StaffOrders from './pages/staff/StaffOrders'
+import StaffDashboard from './pages/staff/StaffDashboard'
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
 export default function App() {
+    const initTheme = useThemeStore((s) => s.initTheme)
+
+    useEffect(() => {
+        initTheme()
+    }, [initTheme])
 
     return (
         <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
@@ -85,10 +97,11 @@ export default function App() {
 
                     </Route>
 
-                    {/* LOGIN */}
+                    {/* LOGIN & PASSWORD RECOVERY */}
                     <Route path="/dang-nhap" element={<LoginPage />} />
-
                     <Route path="/dang-ky" element={<LoginPage />} />
+                    <Route path="/quen-mat-khau" element={<ForgotPasswordPage />} />
+                    <Route path="/dat-lai-mat-khau" element={<ResetPasswordPage />} />
 
                     {/* VNPAY */}
                     <Route path="/checkout/vnpay-return" element={<VnPayReturnPage />} />
@@ -106,6 +119,12 @@ export default function App() {
                         <Route path="van-chuyen" element={<AdminShipping />} />
                         <Route path="cai-dat" element={<AdminSettings />} />
                         <Route path="bao-cao" element={<AdminReports />} />
+                    </Route>
+
+                    {/* STAFF */}
+                    <Route path="/nhan-vien" element={<StaffLayout />}>
+                        <Route index element={<StaffDashboard />} />
+                        <Route path="don-hang" element={<StaffOrders />} />
                     </Route>
 
                     {/* FALLBACK */}
