@@ -102,8 +102,8 @@ const policies = {
                 
                 <div className="grid gap-6">
                     <div className="border border-pink-100 p-6 rounded-2xl bg-pink-50/30">
-                        <h4 className="font-bold text-pink-700 text-lg mb-2">Chi nhánh Quận 1 (Flagship)</h4>
-                        <p className="text-sm text-gray-600">📍 Địa chỉ: 123 Lê Lợi, Phường Bến Thành, Quận 1, TP. HCM</p>
+                        <h4 className="font-bold text-pink-700 text-lg mb-2">Chi nhánh Quận 12 (Flagship)</h4>
+                        <p className="text-sm text-gray-600">📍 Địa chỉ: C2 Picity High Park, Phường Thới An, Quận 12, TP. HCM</p>
                         <p className="text-sm text-gray-600">📞 Hotline: 0922 222 686</p>
                         <p className="text-sm text-gray-600">⏰ Giờ mở cửa: 7:00 - 22:00 (Tất cả các ngày trong tuần)</p>
                     </div>

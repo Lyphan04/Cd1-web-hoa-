@@ -103,18 +103,54 @@ export default function ContactPage() {
 
                 </div>
 
-                {/* Google Maps Embed */}
-                <div className="mt-16 rounded-[2rem] overflow-hidden shadow-xl border-8 border-white bg-gray-100 h-96 relative">
-                    <iframe 
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.3243171120054!2d106.69745161533423!3d10.786448392314545!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f4c3a0701dd%3A0xc6651811e54457e5!2zUXXhuq1uIDEsIFRow6BuaCBwaOG7kSBI4buTIENow60gTWluaCwgVmnhu4d0IE5hbQ!5e0!3m2!1svi!2s!4v1689000000000!5m2!1svi!2s" 
-                        width="100%" 
-                        height="100%" 
-                        style={{ border: 0 }} 
-                        allowFullScreen="" 
-                        loading="lazy" 
-                        referrerPolicy="no-referrer-when-downgrade"
-                        title="Bản đồ vị trí cửa hàng Lyp Flower"
-                    ></iframe>
+                {/* Store Location & Directions */}
+                <div className="mt-16">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-pink-100 text-pink-600 rounded-2xl flex items-center justify-center shrink-0">
+                                <MapPin size={24} />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-gray-900 text-lg">Cửa hàng Lyp Flower</h3>
+                                <p className="text-gray-600 text-sm">C2 Picity High Park, Phường Thới An, Quận 12, TP. HCM</p>
+                            </div>
+                        </div>
+                        <a
+                            href="https://www.google.com/maps/dir/?api=1&destination=C2+Picity+High+Park,+Phường+Thới+An,+Quận+12,+Hồ+Chí+Minh"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-pink-600 text-white rounded-full font-bold hover:bg-pink-700 transition shadow-lg shadow-pink-200 text-sm"
+                        >
+                            <MapPin size={16} />
+                            Chỉ đường đến cửa hàng
+                        </a>
+                    </div>
+
+                    {/* Google Maps Embed */}
+                    <div className="rounded-[2rem] overflow-hidden shadow-xl border-8 border-white bg-gray-100 h-96 relative">
+                        <iframe 
+                            src="https://maps.google.com/maps?q=C2%20Picity%20High%20Park,%20phường%20Thới%20An,%20Quận%2012,%20HCM&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                            width="100%" 
+                            height="100%" 
+                            style={{ border: 0 }} 
+                            allowFullScreen="" 
+                            loading="lazy" 
+                            referrerPolicy="no-referrer-when-downgrade"
+                            title="Bản đồ vị trí cửa hàng Lyp Flower"
+                        ></iframe>
+
+                        {/* Floating directions button on map */}
+                        <a
+                            href="https://www.google.com/maps/dir/?api=1&destination=C2+Picity+High+Park,+Phường+Thới+An,+Quận+12,+Hồ+Chí+Minh"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute bottom-4 right-4 inline-flex items-center gap-2 px-5 py-3 bg-white text-pink-600 rounded-full font-bold hover:bg-pink-50 transition shadow-xl border border-pink-200 text-sm z-10"
+                            title="Mở Google Maps để chỉ đường"
+                        >
+                            <MapPin size={16} />
+                            Chỉ đường
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
