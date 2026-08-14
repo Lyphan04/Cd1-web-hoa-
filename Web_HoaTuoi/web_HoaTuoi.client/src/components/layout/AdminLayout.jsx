@@ -16,12 +16,12 @@ import {
     Truck,
     Settings,
     BarChart3,
-sepay-update
+
     Home,
     Bell
 
     Bot
- main
+
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { HubConnectionBuilder } from '@microsoft/signalr';

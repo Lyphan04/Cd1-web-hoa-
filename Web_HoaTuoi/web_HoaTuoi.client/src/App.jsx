@@ -39,12 +39,12 @@ import AdminVouchers from './pages/admin/AdminVouchers'
 import AdminShipping from './pages/admin/AdminShipping'
 import AdminSettings from './pages/admin/AdminSettings'
 import AdminReports from './pages/admin/AdminReports'
- sepay-update
+
 import StaffOrders from './pages/staff/StaffOrders'
 import StaffDashboard from './pages/staff/StaffDashboard'
 
 import AdminAiChat from './pages/admin/AdminAiChat'
-main
+
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 

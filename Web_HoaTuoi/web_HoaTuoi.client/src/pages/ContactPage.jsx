@@ -103,14 +103,6 @@ export default function ContactPage() {
 
                 </div>
 
- sepay-update
-                {/* Map Placeholder */}
-                <div className="mt-16 rounded-[2rem] overflow-hidden shadow-inner border-8 border-white dark:border-[#1a1a1a] bg-gray-100 dark:bg-slate-900 h-96 relative flex items-center justify-center">
-                   <div className="text-center space-y-4 px-4">
-                        <MapPin size={48} className="mx-auto text-pink-300 dark:text-pink-700" />
-                        <h3 className="text-xl font-bold text-gray-400 dark:text-gray-600">Google Maps sẽ xuất hiện ở đây</h3>
-                        <p className="text-gray-400 dark:text-gray-500 text-sm max-w-md mx-auto">Chúng tôi tọa lạc tại trung tâm các quận chính TP. HCM để đảm bảo giao hoa nhanh nhất.</p>
-                   </div>
                 {/* Google Maps Embed */}
                 <div className="mt-16 rounded-[2rem] overflow-hidden shadow-xl border-8 border-white bg-gray-100 h-96 relative">
                     <iframe 
@@ -123,7 +115,6 @@ export default function ContactPage() {
                         referrerPolicy="no-referrer-when-downgrade"
                         title="Bản đồ vị trí cửa hàng Lyp Flower"
                     ></iframe>
- main
                 </div>
             </div>
         </div>
