@@ -112,11 +112,11 @@ export default function ContactPage() {
                             </div>
                             <div>
                                 <h3 className="font-bold text-gray-900 text-lg">Cửa hàng Lyp Flower</h3>
-                                <p className="text-gray-600 text-sm">C2 Picity High Park, Phường Thới An, Quận 12, TP. HCM</p>
+                                <p className="text-gray-600 text-sm">613 Âu Cơ, Tân Phú, Hồ Chí Minh 700000, Việt Nam</p>
                             </div>
                         </div>
                         <a
-                            href="https://www.google.com/maps/dir/?api=1&destination=C2+Picity+High+Park,+Phường+Thới+An,+Quận+12,+Hồ+Chí+Minh"
+                            href="https://www.google.com/maps/dir/?api=1&destination=613+Au+Co,+Tan+Phu,+Ho+Chi+Minh"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 px-6 py-3 bg-pink-600 text-white rounded-full font-bold hover:bg-pink-700 transition shadow-lg shadow-pink-200 text-sm"
@@ -129,7 +129,7 @@ export default function ContactPage() {
                     {/* Google Maps Embed */}
                     <div className="rounded-[2rem] overflow-hidden shadow-xl border-8 border-white bg-gray-100 h-96 relative">
                         <iframe 
-                            src="https://maps.google.com/maps?q=C2%20Picity%20High%20Park,%20phường%20Thới%20An,%20Quận%2012,%20HCM&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                            src="https://maps.google.com/maps?q=613%20%C3%82u%20C%C6%A1,%20T%C3%A2n%20Ph%C3%BA,%20H%E1%BB%93%20Ch%C3%AD%20Minh,%20Vi%E1%BB%87t%20Nam&t=&z=15&ie=UTF8&iwloc=&output=embed" 
                             width="100%" 
                             height="100%" 
                             style={{ border: 0 }} 
@@ -141,7 +141,7 @@ export default function ContactPage() {
 
                         {/* Floating directions button on map */}
                         <a
-                            href="https://www.google.com/maps/dir/?api=1&destination=C2+Picity+High+Park,+Phường+Thới+An,+Quận+12,+Hồ+Chí+Minh"
+                            href="https://www.google.com/maps/dir/?api=1&destination=613+Au+Co,+Tan+Phu,+Ho+Chi+Minh"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="absolute bottom-4 right-4 inline-flex items-center gap-2 px-5 py-3 bg-white text-pink-600 rounded-full font-bold hover:bg-pink-50 transition shadow-xl border border-pink-200 text-sm z-10"

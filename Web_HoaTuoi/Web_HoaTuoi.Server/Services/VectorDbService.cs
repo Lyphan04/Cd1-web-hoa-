@@ -59,6 +59,7 @@ namespace Web_HoaTuoi.Server.Services
 
             var mongoConn = configuration["MONGO_CONNECTION_STRING"]
                             ?? Environment.GetEnvironmentVariable("MONGO_CONNECTION_STRING")
+                            ?? DotNetEnv.Env.GetString("MONGO_CONNECTION_STRING", null)
                             ?? configuration.GetConnectionString("MongoDB");
 
             if (string.IsNullOrWhiteSpace(mongoConn))
@@ -69,6 +70,7 @@ namespace Web_HoaTuoi.Server.Services
 
             var rawKey = configuration["GEMINI_API_KEY"]
                          ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY")
+                         ?? DotNetEnv.Env.GetString("GEMINI_API_KEY", null)
                          ?? string.Empty;
 
             _geminiApiKey = rawKey.Trim().Trim('"', '\'');

@@ -38,16 +38,18 @@ namespace Web_HoaTuoi.Server.Controllers
 
             var mongoConn = configuration["MONGO_CONNECTION_STRING"]
                             ?? Environment.GetEnvironmentVariable("MONGO_CONNECTION_STRING")
+                            ?? DotNetEnv.Env.GetString("MONGO_CONNECTION_STRING", null)
                             ?? configuration.GetConnectionString("MongoDB");
 
-            // if (string.IsNullOrWhiteSpace(mongoConn))
-            // {
-            //     mongoConn = "mongodb+srv://truongnha474:mongoDb@cluster0.r2doavc.mongodb.net/";
-            // }
+            if (string.IsNullOrWhiteSpace(mongoConn))
+            {
+                mongoConn = "mongodb+srv://truongnha474:mongoDb@cluster0.r2doavc.mongodb.net/";
+            }
             _mongoConnString = mongoConn;
 
             var rawKey = configuration["GEMINI_API_KEY"]
                          ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY")
+                         ?? DotNetEnv.Env.GetString("GEMINI_API_KEY", null)
                          ?? string.Empty;
 
             _geminiApiKey = rawKey.Trim().Trim('"', '\'');
@@ -164,7 +166,7 @@ namespace Web_HoaTuoi.Server.Controllers
             try
             {
                 var queryVector = await _vectorDb.GetEmbeddingFromGeminiAsync(request.Message);
-                if (queryVector != null && queryVector.Count > 0)
+                if (queryVector != null && queryVector.Count > 0 && !string.IsNullOrWhiteSpace(_mongoConnString))
                 {
                     var mongoSettings = MongoClientSettings.FromConnectionString(_mongoConnString);
                     mongoSettings.ServerSelectionTimeout = TimeSpan.FromSeconds(3);

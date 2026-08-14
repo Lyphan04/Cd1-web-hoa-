@@ -65,4 +65,18 @@ public class VouchersController : ControllerBase
         await _context.SaveChangesAsync();
         return NoContent();
     }
+
+    // DELETE: api/Vouchers/5
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteVoucher(int id)
+    {
+        var voucher = await _context.Vouchers.FindAsync(id);
+        if (voucher == null) return NotFound();
+
+        _context.Vouchers.Remove(voucher);
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
 }

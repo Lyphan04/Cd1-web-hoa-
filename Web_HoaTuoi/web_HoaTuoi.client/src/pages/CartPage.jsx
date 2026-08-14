@@ -20,7 +20,7 @@ export default function CartPage() {
       <ShoppingCart size={64} className="mx-auto text-gray-200 mb-4" />
       <h2 className="text-xl font-bold text-gray-700 mb-2">Giỏ hàng trống</h2>
       <p className="text-gray-400 mb-6">Hãy thêm sản phẩm vào giỏ hàng!</p>
-      <Link to="/danh-muc" className="btn-primary">Tiếp tục mua sắm</Link>
+      <Link to="/hoa" className="btn-primary">Tiếp tục mua sắm</Link>
     </div>
   );
 

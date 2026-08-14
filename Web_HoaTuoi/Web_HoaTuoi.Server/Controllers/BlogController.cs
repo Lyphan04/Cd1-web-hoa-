@@ -38,7 +38,7 @@ public class BlogController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<object>> GetAll([FromQuery] string? type, [FromQuery] int page = 1, [FromQuery] int pageSize = 6)
+    public async Task<ActionResult<object>> GetAll([FromQuery] string? type, [FromQuery] int page = 1, [FromQuery] int pageSize = 100)
     {
         var query = _db.BlogPosts.AsQueryable();
         if (!string.IsNullOrEmpty(type)) query = query.Where(b => b.Type == type);

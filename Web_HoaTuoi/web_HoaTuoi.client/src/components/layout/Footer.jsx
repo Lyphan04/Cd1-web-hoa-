@@ -10,7 +10,7 @@ const supportLinks = [
     { to: "/chinh-sach/huong-dan", label: "Hướng dẫn đặt hoa" },
     { to: "/chinh-sach/doi-tra", label: "Chính sách đổi trả" },
     { to: "/chinh-sach/giao-hang", label: "Chính sách giao hàng" },
-    { to: "/tai-khoan", label: "Tra cứu đơn hàng" },
+    { to: "/don-hang", label: "Tra cứu đơn hàng" },
     { to: "/lien-he", label: "Liên hệ" }
 ];
 

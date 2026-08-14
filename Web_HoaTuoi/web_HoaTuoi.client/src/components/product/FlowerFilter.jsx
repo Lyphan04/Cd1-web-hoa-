@@ -1,5 +1,5 @@
-// src/components/product/ProductFilter.jsx
-// Bộ lọc cho shop hoa
+import { useEffect } from 'react';
+import { useCategoriesStore } from '../../store/categoriesStore';
 
 // Component nhỏ hiển thị từng section
 function FilterSection({ title, children }) {
@@ -14,18 +14,16 @@ function FilterSection({ title, children }) {
 }
 
 export default function ProductFilter({ filters = {}, onChange }) {
+    const { categories, fetchIfEmpty } = useCategoriesStore();
 
-    // Đồng nhất với thư mục assets
-    const flowerTypes = [
-        { label: "Hoa hồng", value: "hoa-hong" },
-        { label: "Hoa tulip", value: "hoa-tulip" },
-        { label: "Hoa hướng dương", value: "hoa-huong-duong" },
-        { label: "Hoa cẩm tú cầu", value: "hoa-cam-tu-cau" },
-        { label: "Hoa lan", value: "hoa-lan" },
-        { label: "Hoa cưới", value: "hoa-cuoi" },
-        { label: "Giỏ hoa", value: "gio-hoa" },
-        { label: "Vali hoa", value: "vali-hoa" }
-    ];
+    useEffect(() => {
+        fetchIfEmpty();
+    }, [fetchIfEmpty]);
+
+    const flowerTypes = categories.map(cat => ({
+        label: cat.name,
+        value: cat.slug
+    }));
 
     const occasions = [
         "Sinh nhật",

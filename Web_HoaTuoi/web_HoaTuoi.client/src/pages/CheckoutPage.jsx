@@ -150,8 +150,8 @@ function QrPaymentModal({ qrInfo, onClose, navigate }) {
             <div className="bg-gray-50 rounded-2xl p-4 mb-5 text-left text-xs space-y-2 border border-gray-100">
               {[
                 { label: 'Mã đơn hàng', value: qrInfo.orderCode },
-                { label: 'Ngân hàng nhận', value: 'Vietcombank' },
-                { label: 'Chủ tài khoản', value: 'PHAN THI KIM LY' },
+                { label: 'Ngân hàng nhận', value: qrInfo.bankId || 'MBBANK' },
+                { label: 'Chủ tài khoản', value: qrInfo.accountName || 'NGUYEN TRONG HUNG' },
               ].map(({ label, value }) => (
                 <div key={label} className="flex justify-between">
                   <span className="text-gray-500">{label}:</span>
@@ -231,7 +231,7 @@ function QrPaymentModal({ qrInfo, onClose, navigate }) {
           <div className="bg-gray-50 rounded-2xl p-3.5 mb-3 text-xs space-y-2 border border-gray-200/80">
             <div className="flex items-center justify-between">
               <span className="text-gray-500 font-medium">Ngân hàng:</span>
-              <span className="font-bold text-gray-800">Vietcombank (VCB)</span>
+              <span className="font-bold text-gray-800">{qrInfo.bankId === 'MB' ? 'Ngân hàng Quân Đội (MBBANK)' : qrInfo.bankId || 'MBBANK'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500 font-medium">Số tài khoản:</span>
