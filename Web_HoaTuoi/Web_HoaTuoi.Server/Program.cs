@@ -204,6 +204,48 @@ using (var scope = app.Services.CreateScope())
 
     var inventory = scope.ServiceProvider.GetRequiredService<IInventoryService>();
     await inventory.SyncFromDatabaseAsync(db);
+
+    // Tự động chạy DWH ETL và đồng bộ MongoDB Vector Database trong luồng nền
+    var rootServiceProvider = app.Services;
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            using (var dwhScope = rootServiceProvider.CreateScope())
+            {
+                var config = dwhScope.ServiceProvider.GetRequiredService<IConfiguration>();
+                var dwhConnStr = config.GetConnectionString("DwhConnection");
+                if (!string.IsNullOrEmpty(dwhConnStr))
+                {
+                    using var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr);
+                    await conn.OpenAsync();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "sp_ETL_Load_HoaTuoi_DWH";
+                    cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                    await cmd.ExecuteNonQueryAsync();
+                    Console.WriteLine("[Auto-Sync Startup] DWH ETL completed successfully.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Auto-Sync Startup] DWH ETL failed: {ex.Message}");
+        }
+
+        try
+        {
+            using (var vectorScope = rootServiceProvider.CreateScope())
+            {
+                var vectorDb = vectorScope.ServiceProvider.GetRequiredService<VectorDbService>();
+                var count = await vectorDb.SyncAllProductsToVectorDbAsync();
+                Console.WriteLine($"[Auto-Sync Startup] Vector DB sync completed: {count} products synced.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Auto-Sync Startup] Vector DB sync failed: {ex.Message}");
+        }
+    });
 }
 
 app.Run();

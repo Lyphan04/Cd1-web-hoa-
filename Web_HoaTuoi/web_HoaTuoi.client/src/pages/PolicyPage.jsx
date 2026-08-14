@@ -107,20 +107,6 @@ const policies = {
                         <p className="text-sm text-gray-600">📞 Hotline: 0922 222 686</p>
                         <p className="text-sm text-gray-600">⏰ Giờ mở cửa: 7:00 - 22:00 (Tất cả các ngày trong tuần)</p>
                     </div>
-
-                    <div className="border border-gray-100 p-6 rounded-2xl bg-white shadow-sm">
-                        <h4 className="font-bold text-gray-800 text-lg mb-2">Chi nhánh Quận 7</h4>
-                        <p className="text-sm text-gray-600">📍 Địa chỉ: 456 Nguyễn Lương Bằng, Phường Tân Phú, Quận 7, TP. HCM</p>
-                        <p className="text-sm text-gray-600">📞 Hotline: 0922 222 686</p>
-                        <p className="text-sm text-gray-600">⏰ Giờ mở cửa: 7:30 - 21:00</p>
-                    </div>
-
-                    <div className="border border-gray-100 p-6 rounded-2xl bg-white shadow-sm">
-                        <h4 className="font-bold text-gray-800 text-lg mb-2">Chi nhánh Quận Bình Thạnh</h4>
-                        <p className="text-sm text-gray-600">📍 Địa chỉ: 789 Phan Đăng Lưu, Phường 1, Q. Bình Thạnh, TP. HCM</p>
-                        <p className="text-sm text-gray-600">📞 Hotline: 0922 222 686</p>
-                        <p className="text-sm text-gray-600">⏰ Giờ mở cửa: 8:00 - 21:00</p>
-                    </div>
                 </div>
 
                 <p className="text-gray-500 italic text-sm">Chúng tôi đang tiếp tục mở rộng hệ thống để phục vụ quý khách tốt hơn. Rất hân hạnh được đón tiếp!</p>

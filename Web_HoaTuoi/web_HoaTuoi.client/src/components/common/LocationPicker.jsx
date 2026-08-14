@@ -89,6 +89,7 @@ export default function LocationPicker({
 
       <div className="h-[300px] w-full rounded-lg border border-gray-300 overflow-hidden relative z-0">
         <MapContainer
+          key={`${position?.lat ?? defaultPosition.lat}-${position?.lng ?? defaultPosition.lng}`}
           center={position || defaultPosition}
           zoom={15}
           scrollWheelZoom={true}

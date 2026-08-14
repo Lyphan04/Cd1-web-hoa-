@@ -25,11 +25,13 @@ namespace Web_HoaTuoi.Server.Controllers
         private readonly HttpClient _httpClient;
         private readonly string _mongoConnString;
         private readonly string _geminiApiKey;
+        private readonly IConfiguration _configuration;
 
         public ChatController(AppDbContext db, VectorDbService vectorDb, IConfiguration configuration, IHttpClientFactory httpClientFactory)
         {
             _db = db;
             _vectorDb = vectorDb;
+            _configuration = configuration;
             _httpClient = httpClientFactory.CreateClient();
 
             try { DotNetEnv.Env.Load(".env.local"); } catch { }
@@ -38,10 +40,10 @@ namespace Web_HoaTuoi.Server.Controllers
                             ?? Environment.GetEnvironmentVariable("MONGO_CONNECTION_STRING")
                             ?? configuration.GetConnectionString("MongoDB");
 
-            if (string.IsNullOrWhiteSpace(mongoConn))
-            {
-                mongoConn = "mongodb+srv://truongnha474:mongoDb@cluster0.r2doavc.mongodb.net/";
-            }
+            // if (string.IsNullOrWhiteSpace(mongoConn))
+            // {
+            //     mongoConn = "mongodb+srv://truongnha474:mongoDb@cluster0.r2doavc.mongodb.net/";
+            // }
             _mongoConnString = mongoConn;
 
             var rawKey = configuration["GEMINI_API_KEY"]
@@ -495,8 +497,30 @@ namespace Web_HoaTuoi.Server.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SyncVectorDb()
         {
+            // 1. Chạy quy trình ETL Data Warehouse đồng thời
+            try
+            {
+                var dwhConnStr = _configuration.GetConnectionString("DwhConnection");
+                if (!string.IsNullOrEmpty(dwhConnStr))
+                {
+                    using var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr);
+                    await conn.OpenAsync();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "sp_ETL_Load_HoaTuoi_DWH";
+                    cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                    await cmd.ExecuteNonQueryAsync();
+                    Console.WriteLine("[SyncVectorDb] DWH ETL completed successfully.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SyncVectorDb] DWH ETL failed: {ex.Message}");
+                // Vẫn tiếp tục đồng bộ sang Vector DB cho dù DWH ETL có bị lỗi
+            }
+
+            // 2. Đồng bộ Vector Database (MongoDB Atlas)
             var count = await _vectorDb.SyncAllProductsToVectorDbAsync();
-            return Ok(new { message = "Đồng bộ thành công dữ liệu sản phẩm lên Vector Database.", count });
+            return Ok(new { message = "Đồng bộ thành công dữ liệu sản phẩm lên Data Warehouse và Vector Database.", count });
         }
     }
 }

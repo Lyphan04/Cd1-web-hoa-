@@ -3,11 +3,12 @@
 
 $ErrorActionPreference = "Stop"
 
-# Target Databases
+# Target Server & Databases
+$sqlServer = "localhost\SQLEXPRESS"
 $databases = @("WebHoaTuoiDb", "FlowerDW")
 
 # File Paths
-$sqlSourceDir = "d:\lypflower\Web-HoaTuoi - Copy\Web_HoaTuoi\sql_data\sql_source"
+$sqlSourceDir = Join-Path $PSScriptRoot "sql_source"
 $files = [ordered]@{
     "USER"         = Join-Path $sqlSourceDir "USER.sql"
     "Orders"       = Join-Path $sqlSourceDir "Orders.sql"
@@ -23,7 +24,7 @@ foreach ($db in $databases) {
     Write-Host "Processing Database: ${db}..." -ForegroundColor Yellow
     
     # Check if database exists
-    $dbExistsResult = sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT COUNT(*) FROM sys.databases WHERE name = '$db'" -h -1
+    $dbExistsResult = sqlcmd -S $sqlServer -Q "SELECT COUNT(*) FROM sys.databases WHERE name = '$db'" -h -1
     $dbExists = $dbExistsResult[0].Trim()
     if ($dbExists -eq "0") {
         Write-Warning "Database ${db} does not exist. Skipping."
@@ -32,11 +33,11 @@ foreach ($db in $databases) {
 
     # Disable check constraints
     Write-Host "  Disabling foreign key constraints in ${db}..."
-    sqlcmd -S "(localdb)\MSSQLLocalDB" -d $db -Q "EXEC sp_MSforeachtable 'ALTER TABLE ? NOCHECK CONSTRAINT all';" | Out-Null
+    sqlcmd -S $sqlServer -d $db -Q "EXEC sp_MSforeachtable 'ALTER TABLE ? NOCHECK CONSTRAINT all';" | Out-Null
 
     # Clean existing data in dependency order
     Write-Host "  Cleaning existing data in ${db} (Reviews -> OrderDetails -> Orders -> USER)..."
-    sqlcmd -S "(localdb)\MSSQLLocalDB" -d $db -Q "DELETE FROM Reviews; DELETE FROM OrderDetails; DELETE FROM Orders; DELETE FROM [USER];" | Out-Null
+    sqlcmd -S $sqlServer -d $db -Q "DELETE FROM Reviews; DELETE FROM OrderDetails; DELETE FROM Orders; DELETE FROM [USER];" | Out-Null
 
     foreach ($table in $files.Keys) {
         $filePath = $files[$table]
@@ -49,7 +50,7 @@ foreach ($db in $databases) {
         
         # Check if table has identity column
         $hasIdentityQuery = "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('$table') AND is_identity = 1"
-        $hasIdentityResult = sqlcmd -S "(localdb)\MSSQLLocalDB" -d $db -Q $hasIdentityQuery -h -1
+        $hasIdentityResult = sqlcmd -S $sqlServer -d $db -Q $hasIdentityQuery -h -1
         $hasIdentity = ($hasIdentityResult[0].Trim() -eq "1")
 
         Write-Host "    Table $table has identity column in ${db}: $hasIdentity"
@@ -81,7 +82,7 @@ foreach ($db in $databases) {
         Set-Content -Path $tempFile -Value $sqlContent -Encoding utf8
 
         # Run import
-        $importOutput = sqlcmd -S "(localdb)\MSSQLLocalDB" -d $db -i $tempFile 2>&1
+        $importOutput = sqlcmd -S $sqlServer -d $db -i $tempFile 2>&1
         $importFailed = $LASTEXITCODE -ne 0
 
         # Clean up temp file
@@ -98,7 +99,7 @@ foreach ($db in $databases) {
 
     # Enable check constraints
     Write-Host "  Re-enabling check constraints in ${db}..."
-    sqlcmd -S "(localdb)\MSSQLLocalDB" -d $db -Q "EXEC sp_MSforeachtable 'ALTER TABLE ? CHECK CONSTRAINT all';" | Out-Null
+    sqlcmd -S $sqlServer -d $db -Q "EXEC sp_MSforeachtable 'ALTER TABLE ? CHECK CONSTRAINT all';" | Out-Null
     Write-Host "  Database ${db} processing complete.`n" -ForegroundColor Green
 }
 
@@ -107,14 +108,14 @@ Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Data Import Row Count Summary" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 foreach ($db in $databases) {
-    $dbExistsResult = sqlcmd -S "(localdb)\MSSQLLocalDB" -Q "SELECT COUNT(*) FROM sys.databases WHERE name = '$db'" -h -1
+    $dbExistsResult = sqlcmd -S $sqlServer -Q "SELECT COUNT(*) FROM sys.databases WHERE name = '$db'" -h -1
     $dbExists = $dbExistsResult[0].Trim()
     if ($dbExists -eq "0") { continue }
 
     Write-Host "Database: ${db}" -ForegroundColor Yellow
     $tables = @("USER", "Orders", "OrderDetails", "Reviews")
     foreach ($t in $tables) {
-        $countResult = sqlcmd -S "(localdb)\MSSQLLocalDB" -d $db -Q "SELECT COUNT(*) FROM [$t]" -h -1
+        $countResult = sqlcmd -S $sqlServer -d $db -Q "SELECT COUNT(*) FROM [$t]" -h -1
         $count = $countResult[0].Trim()
         Write-Host "  - Table [$t]: $count rows"
     }

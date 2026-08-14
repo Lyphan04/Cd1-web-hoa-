@@ -125,16 +125,17 @@ export default function Header() {
                                     {l.hasDropdown && <ChevronDown size={14} />}
                                 </NavLink>
 
-                                {l.hasDropdown && quickCategories.length > 0 && (
-                                    <div className="absolute left-0 top-full mt-1 w-56 bg-white dark:bg-[#1a1a1a] rounded-xl shadow-lg border dark:border-slate-800 py-2 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition">
+                                {l.hasDropdown && categories.length > 0 && (
+                                    <div className="absolute left-0 top-full mt-1 w-[480px] bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-xl border dark:border-slate-800 p-4 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition grid grid-cols-2 gap-2">
 
-                                        {quickCategories.map(cat => (
+                                        {categories.map(cat => (
                                             <Link
                                                 key={cat.slug}
                                                 to={`/hoa?category=${cat.slug}`}
-                                                className="block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-pink-50 dark:hover:bg-slate-800 hover:text-pink-600 dark:hover:text-pink-400"
+                                                className="flex items-center gap-2 px-3 py-2.5 text-xs text-gray-600 dark:text-gray-300 rounded-xl hover:bg-pink-50 dark:hover:bg-pink-950/20 hover:text-pink-600 dark:hover:text-pink-400 transition-colors"
                                             >
-                                                🌸 {cat.name}
+                                                <span>🌸</span>
+                                                <span className="font-semibold">{cat.name}</span>
                                             </Link>
                                         ))}
 
@@ -298,9 +299,9 @@ export default function Header() {
                                     </NavLink>
                                     
                                     {/* Mobile Submenu */}
-                                    {l.hasDropdown && quickCategories.length > 0 && (
-                                        <div className="bg-gray-50/50 dark:bg-slate-900/50 border-b border-gray-50 dark:border-slate-800">
-                                            {quickCategories.map(cat => (
+                                    {l.hasDropdown && categories.length > 0 && (
+                                        <div className="bg-gray-50/50 dark:bg-slate-900/50 border-b border-gray-50 dark:border-slate-800 max-h-64 overflow-y-auto">
+                                            {categories.map(cat => (
                                                 <Link
                                                     key={cat.slug}
                                                     to={`/hoa?category=${cat.slug}`}

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Web_HoaTuoi.Server.Data;
 using Web_HoaTuoi.Server.DTOs;
 using Web_HoaTuoi.Server.Models;
@@ -13,11 +14,35 @@ public class ProductsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly Services.VectorDbService _vectorDb;
+    private readonly IConfiguration _configuration;
 
-    public ProductsController(AppDbContext db, Services.VectorDbService vectorDb)
+    public ProductsController(AppDbContext db, Services.VectorDbService vectorDb, IConfiguration configuration)
     {
         _db = db;
         _vectorDb = vectorDb;
+        _configuration = configuration;
+    }
+
+    private async Task RunDwhEtlAsync()
+    {
+        try
+        {
+            var dwhConnStr = _configuration.GetConnectionString("DwhConnection");
+            if (!string.IsNullOrEmpty(dwhConnStr))
+            {
+                using var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr);
+                await conn.OpenAsync();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "sp_ETL_Load_HoaTuoi_DWH";
+                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                await cmd.ExecuteNonQueryAsync();
+                Console.WriteLine("[ProductsController Auto-ETL] DWH ETL completed successfully.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ProductsController Auto-ETL] DWH ETL failed: {ex.Message}");
+        }
     }
 
     // GET /api/products
@@ -225,7 +250,11 @@ public class ProductsController : ControllerBase
                 .FirstOrDefaultAsync(p => p.Id == product.Id);
             if (productWithCategory != null)
             {
-                _ = Task.Run(() => _vectorDb.UpsertProductVectorAsync(productWithCategory));
+                _ = Task.Run(async () =>
+                {
+                    await _vectorDb.UpsertProductVectorAsync(productWithCategory);
+                    await RunDwhEtlAsync();
+                });
             }
         }
         catch (Exception ex)
@@ -270,7 +299,11 @@ public class ProductsController : ControllerBase
                 .FirstOrDefaultAsync(p => p.Id == product.Id);
             if (productWithCategory != null)
             {
-                _ = Task.Run(() => _vectorDb.UpsertProductVectorAsync(productWithCategory));
+                _ = Task.Run(async () =>
+                {
+                    await _vectorDb.UpsertProductVectorAsync(productWithCategory);
+                    await RunDwhEtlAsync();
+                });
             }
         }
         catch (Exception ex)
@@ -297,7 +330,11 @@ public class ProductsController : ControllerBase
 
         try
         {
-            _ = Task.Run(() => _vectorDb.DeleteProductVectorAsync(id));
+            _ = Task.Run(async () =>
+            {
+                await _vectorDb.DeleteProductVectorAsync(id);
+                await RunDwhEtlAsync();
+            });
         }
         catch (Exception ex)
         {

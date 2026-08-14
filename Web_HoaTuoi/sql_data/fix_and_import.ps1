@@ -1,11 +1,12 @@
 # Paths
-$reviewsPath = "d:\lypflower\Web-HoaTuoi - Copy\Web_HoaTuoi\sql_data\sql_source\Reviews.sql"
-$userPath = "d:\lypflower\Web-HoaTuoi - Copy\Web_HoaTuoi\sql_data\sql_source\USER.sql"
-$ordersPath = "d:\lypflower\Web-HoaTuoi - Copy\Web_HoaTuoi\sql_data\sql_source\Orders.sql"
-$orderDetailsPath = "d:\lypflower\Web-HoaTuoi - Copy\Web_HoaTuoi\sql_data\sql_source\OrderDetails.sql"
+$sqlServer = "localhost\SQLEXPRESS"
+$reviewsPath = Join-Path $PSScriptRoot "sql_source\Reviews.sql"
+$userPath = Join-Path $PSScriptRoot "sql_source\USER.sql"
+$ordersPath = Join-Path $PSScriptRoot "sql_source\Orders.sql"
+$orderDetailsPath = Join-Path $PSScriptRoot "sql_source\OrderDetails.sql"
 
 # Clean tables first
-sqlcmd -S "(localdb)\MSSQLLocalDB" -d "WebHoaTuoiDb" -Q "DELETE FROM Reviews; DELETE FROM OrderDetails; DELETE FROM Orders; DELETE FROM [USER];"
+sqlcmd -S $sqlServer -d "WebHoaTuoiDb" -Q "DELETE FROM Reviews; DELETE FROM OrderDetails; DELETE FROM Orders; DELETE FROM [USER];"
 
 # 1. Fix Reviews.sql
 Write-Host "Fixing Reviews.sql..."
@@ -25,15 +26,15 @@ Set-Content -Path $userPath -Value $userContent -Encoding utf8
 
 # 3. Run imports one by one
 Write-Host "Importing USER.sql..."
-sqlcmd -S "(localdb)\MSSQLLocalDB" -d "WebHoaTuoiDb" -i $userPath -b
+sqlcmd -S $sqlServer -d "WebHoaTuoiDb" -i $userPath -b
 
 Write-Host "Importing Orders.sql..."
-sqlcmd -S "(localdb)\MSSQLLocalDB" -d "WebHoaTuoiDb" -i $ordersPath -b
+sqlcmd -S $sqlServer -d "WebHoaTuoiDb" -i $ordersPath -b
 
 Write-Host "Importing OrderDetails.sql..."
-sqlcmd -S "(localdb)\MSSQLLocalDB" -d "WebHoaTuoiDb" -i $orderDetailsPath -b
+sqlcmd -S $sqlServer -d "WebHoaTuoiDb" -i $orderDetailsPath -b
 
 Write-Host "Importing Reviews.sql..."
-sqlcmd -S "(localdb)\MSSQLLocalDB" -d "WebHoaTuoiDb" -i $reviewsPath -b
+sqlcmd -S $sqlServer -d "WebHoaTuoiDb" -i $reviewsPath -b
 
 Write-Host "Import complete!"
