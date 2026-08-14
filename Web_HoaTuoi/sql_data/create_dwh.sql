@@ -18,7 +18,7 @@ IF OBJECT_ID('Dim_Customer', 'U') IS NULL
 BEGIN
     CREATE TABLE Dim_Customer (
         CustomerKey INT IDENTITY(1,1) PRIMARY KEY, -- Khóa chính surrogate key cho DWH
-        CustomerId INT NOT NULL,                    -- Mã khách hàng từ hệ thống nguồn (OLTP)
+        CustomerId NVARCHAR(450) NOT NULL,          -- Mã khách hàng từ hệ thống nguồn (OLTP)
         FullName NVARCHAR(255) NULL,
         Email NVARCHAR(255) NULL,
         Phone NVARCHAR(50) NULL,

@@ -52,7 +52,7 @@ public class UsersController : ControllerBase
                 u.FullName,
                 u.Email,
                 u.PhoneNumber,
-                CreatedAt = DateTime.UtcNow, // IdentityUser doesn't have CreatedAt by default unless added. Mocking for now.
+                u.CreatedAt,
                 IsActive = true
             })
             .ToListAsync();

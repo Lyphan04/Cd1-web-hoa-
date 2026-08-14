@@ -295,7 +295,7 @@ export default function ProductDetailPage() {
             {!user ? (
               <div className="text-center py-6 bg-white rounded-xl border border-gray-100 shadow-sm">
                 <p className="text-gray-600 mb-4">Vui lòng đăng nhập để gửi đánh giá cho sản phẩm này.</p>
-                <Link to="/login" className="btn-primary inline-block shadow-md">Đăng nhập nhanh</Link>
+                <Link to="/dang-nhap" className="btn-primary inline-block shadow-md">Đăng nhập nhanh</Link>
               </div>
             ) : (
               <form onSubmit={handleReviewSubmit} className="space-y-4">

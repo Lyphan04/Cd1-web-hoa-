@@ -23,7 +23,7 @@ import toast from "react-hot-toast";
 const navLinks = [
     { to: "/", label: "Trang chủ" },
     { to: "/hoa", label: "Sản phẩm", hasDropdown: false },
-    { to: "/bo-suu-tap", label: "Bộ sưu tập", hasDropdown: true },
+    { to: "/hoa", label: "Bộ sưu tập", hasDropdown: true },
     { to: "/blog", label: "Tin tức" },
     { to: "/lien-he", label: "Liên hệ" }
 ];
@@ -126,7 +126,7 @@ export default function Header() {
                                 </NavLink>
 
                                 {l.hasDropdown && categories.length > 0 && (
-                                    <div className="absolute left-0 top-full mt-1 w-[480px] bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-xl border dark:border-slate-800 p-4 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition grid grid-cols-2 gap-2">
+                                    <div className="absolute left-0 top-full w-[480px] bg-white dark:bg-[#1a1a1a] rounded-2xl shadow-xl border dark:border-slate-800 p-4 opacity-0 invisible group-hover:visible group-hover:opacity-100 transition grid grid-cols-2 gap-2">
 
                                         {categories.map(cat => (
                                             <Link

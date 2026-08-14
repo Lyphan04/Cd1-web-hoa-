@@ -217,6 +217,9 @@ using (var scope = app.Services.CreateScope())
                 var dwhConnStr = config.GetConnectionString("DwhConnection");
                 if (!string.IsNullOrEmpty(dwhConnStr))
                 {
+                    // Tự động khởi tạo database và schema nếu chưa có
+                    await EnsureDwhInitializedAsync(dwhConnStr);
+
                     using var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr);
                     await conn.OpenAsync();
                     using var cmd = conn.CreateCommand();
@@ -246,6 +249,105 @@ using (var scope = app.Services.CreateScope())
             Console.WriteLine($"[Auto-Sync Startup] Vector DB sync failed: {ex.Message}");
         }
     });
+}
+
+async Task EnsureDwhInitializedAsync(string dwhConnStr)
+{
+    try
+    {
+        // 1. Kết nối tới master để đảm bảo database HoaTuoi_DWH tồn tại
+        var builder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(dwhConnStr);
+        builder.InitialCatalog = "master";
+        var masterConnStr = builder.ConnectionString;
+
+        using (var conn = new Microsoft.Data.SqlClient.SqlConnection(masterConnStr))
+        {
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'HoaTuoi_DWH') CREATE DATABASE HoaTuoi_DWH;";
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // 2. Kết nối tới HoaTuoi_DWH để khởi tạo các bảng và stored procedure
+        using (var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr))
+        {
+            await conn.OpenAsync();
+
+            // Tự động nâng cấp cột CustomerId từ INT lên NVARCHAR(450) nếu là database cũ
+            try
+            {
+                using var upgradeCmd = conn.CreateCommand();
+                upgradeCmd.CommandText = @"
+                    IF EXISTS (
+                        SELECT * FROM sys.columns 
+                        WHERE object_id = OBJECT_ID('Dim_Customer') 
+                          AND name = 'CustomerId' 
+                          AND system_type_id = 56
+                    )
+                    BEGIN
+                        ALTER TABLE Dim_Customer ALTER COLUMN CustomerId NVARCHAR(450) NOT NULL;
+                    END
+                ";
+                await upgradeCmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DWH Auto-Init Warning] Khong the nang cap cot CustomerId: {ex.Message}");
+            }
+
+            // Kiểm tra xem bảng Dim_Customer đã tồn tại chưa
+            bool tableExists = false;
+            try
+            {
+                using var checkCmd = conn.CreateCommand();
+                checkCmd.CommandText = "SELECT OBJECT_ID('Dim_Customer', 'U')";
+                var objId = await checkCmd.ExecuteScalarAsync();
+                tableExists = objId != DBNull.Value && objId != null;
+            }
+            catch { }
+
+            if (!tableExists)
+            {
+                Console.WriteLine("[DWH Auto-Init] Khoi tao cac bang trong database HoaTuoi_DWH...");
+                var sqlDataDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "sql_data");
+                var createDwhPath = Path.Combine(sqlDataDir, "create_dwh.sql");
+                if (File.Exists(createDwhPath))
+                {
+                    var script = await File.ReadAllTextAsync(createDwhPath);
+                    var commands = System.Text.RegularExpressions.Regex.Split(script, @"^\s*GO\s*$", System.Text.RegularExpressions.RegexOptions.Multiline);
+                    foreach (var cmdText in commands)
+                    {
+                        if (string.IsNullOrWhiteSpace(cmdText)) continue;
+                        using var cmd = conn.CreateCommand();
+                        cmd.CommandText = cmdText;
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                    Console.WriteLine("[DWH Auto-Init] Tao cac bang thanh cong.");
+                }
+            }
+
+            // Luôn cập nhật/tạo mới stored procedure ETL
+            var etlPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "sql_data", "etl_procedure_fixed.sql");
+            if (File.Exists(etlPath))
+            {
+                Console.WriteLine("[DWH Auto-Init] Nap hoac cap nhat stored procedure sp_ETL_Load_HoaTuoi_DWH...");
+                var script = await File.ReadAllTextAsync(etlPath);
+                var commands = System.Text.RegularExpressions.Regex.Split(script, @"^\s*GO\s*$", System.Text.RegularExpressions.RegexOptions.Multiline);
+                foreach (var cmdText in commands)
+                {
+                    if (string.IsNullOrWhiteSpace(cmdText)) continue;
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = cmdText;
+                    await cmd.ExecuteNonQueryAsync();
+                }
+                Console.WriteLine("[DWH Auto-Init] Nap stored procedure thanh cong.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[DWH Auto-Init Error]: {ex.Message}");
+    }
 }
 
 app.Run();

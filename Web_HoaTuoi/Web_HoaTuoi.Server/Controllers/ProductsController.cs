@@ -103,12 +103,15 @@ public class ProductsController : ControllerBase
                 p.Price,
                 p.SalePrice,
                 p.IsOnSale,
-                "", // material
-                "", // style
+                p.CategoryId,
+                p.Description,
+                p.Meaning ?? string.Empty,
                 p.Color,
                 p.FlowerType,
                 p.Occasion ?? "Nhiều dịp",
                 p.BouquetSize ?? "Tiêu chuẩn",
+                p.Stock,
+                p.WeightKg,
                 p.SoldCount,
                 p.Reviews.Where(r => r.IsApproved).Any() ? p.Reviews.Where(r => r.IsApproved).Average(r => (double)r.Rating) : (double?)null,
                 p.Reviews.Count(r => r.IsApproved)
@@ -175,16 +178,12 @@ public class ProductsController : ControllerBase
             p.SalePrice,
             p.IsOnSale,
             p.Stock,
-            null, // LengthCm
-            null, // WidthCm
-            null, // HeightCm
             p.WeightKg,
-            "", // material
-            "", // style
             p.Color,
             p.FlowerType,
             p.Occasion ?? "Nhiều dịp",
             p.BouquetSize ?? "Tiêu chuẩn",
+            p.Meaning ?? string.Empty,
             new CategoryDto(
                 p.Category.Id,
                 p.Category.Name,
@@ -231,9 +230,11 @@ public class ProductsController : ControllerBase
             CategoryId = req.CategoryId,
             Stock = req.Stock,
             MainImageUrl = req.MainImageUrl,
-            FlowerType = req.Material ?? string.Empty,
-            Occasion = req.Style ?? string.Empty,
+            FlowerType = req.FlowerType ?? string.Empty,
+            Occasion = req.Occasion ?? string.Empty,
             Color = req.Color ?? string.Empty,
+            BouquetSize = req.BouquetSize ?? string.Empty,
+            Meaning = req.Meaning ?? string.Empty,
             WeightKg = req.WeightKg,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
@@ -284,9 +285,11 @@ public class ProductsController : ControllerBase
         product.CategoryId = req.CategoryId;
         product.Stock = req.Stock;
         product.MainImageUrl = req.MainImageUrl;
-        product.FlowerType = req.Material ?? string.Empty;
-        product.Occasion = req.Style ?? string.Empty;
+        product.FlowerType = req.FlowerType ?? string.Empty;
+        product.Occasion = req.Occasion ?? string.Empty;
         product.Color = req.Color ?? string.Empty;
+        product.BouquetSize = req.BouquetSize ?? string.Empty;
+        product.Meaning = req.Meaning ?? string.Empty;
         product.WeightKg = req.WeightKg;
         product.UpdatedAt = DateTime.UtcNow;
 

@@ -85,7 +85,7 @@ export default function VnPayReturnPage() {
                     <Link to="/" className="flex-1 btn-primary py-3 text-center block">
                         Về trang chủ
                     </Link>
-                    <Link to="/tai-khoan/don-hang" className="flex-1 py-3 text-center block border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition">
+                    <Link to="/don-hang" className="flex-1 py-3 text-center block border-2 border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition">
                         Đơn hàng của tôi
                     </Link>
                 </div>

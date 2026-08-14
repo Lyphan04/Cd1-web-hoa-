@@ -9,7 +9,7 @@ const EMPTY_FORM = {
   description: '',
   discountType: 'Percentage',
   discountValue: '',
-  minOrderAmount: '',
+  minOrderValue: '',
   maxDiscountAmount: '',
   usageLimit: '',
   isActive: true,
@@ -54,7 +54,7 @@ export default function AdminVouchers() {
       description: v.description ?? '',
       discountType: v.discountType,
       discountValue: v.discountValue,
-      minOrderAmount: v.minOrderAmount ?? '',
+      minOrderValue: v.minOrderValue ?? '',
       maxDiscountAmount: v.maxDiscountAmount ?? '',
       usageLimit: v.usageLimit ?? '',
       isActive: v.isActive,
@@ -80,7 +80,7 @@ export default function AdminVouchers() {
       const payload = {
         ...form,
         discountValue: Number(form.discountValue),
-        minOrderAmount: form.minOrderAmount ? Number(form.minOrderAmount) : null,
+        minOrderValue: form.minOrderValue ? Number(form.minOrderValue) : null,
         maxDiscountAmount: form.maxDiscountAmount ? Number(form.maxDiscountAmount) : null,
         usageLimit: form.usageLimit ? Number(form.usageLimit) : null,
         validFrom: new Date(form.validFrom).toISOString(),
@@ -190,7 +190,7 @@ export default function AdminVouchers() {
                       )}
                     </td>
                     <td className="px-5 py-4 text-gray-600 text-xs">
-                      {v.minOrderAmount ? `Đơn từ ${formatVnd(v.minOrderAmount)}` : 'Mọi đơn hàng'}
+                      {v.minOrderValue ? `Đơn từ ${formatVnd(v.minOrderValue)}` : 'Mọi đơn hàng'}
                     </td>
                     <td className="px-5 py-4 text-gray-500 text-xs font-mono">
                       <div>{new Date(v.validFrom).toLocaleString('vi-VN')}</div>
@@ -285,7 +285,7 @@ export default function AdminVouchers() {
                 <h3 className="font-bold text-blue-800 text-sm mb-2">Điều kiện áp dụng</h3>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5 ml-1">Đơn hàng tối thiểu (VNĐ)</label>
-                  <input name="minOrderAmount" type="number" min="0" value={form.minOrderAmount} onChange={handleFormChange} placeholder="0 cho mọi đơn hàng" className="input text-sm bg-white" />
+                  <input name="minOrderValue" type="number" min="0" value={form.minOrderValue} onChange={handleFormChange} placeholder="0 cho mọi đơn hàng" className="input text-sm bg-white" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5 ml-1">Tổng lượt sử dụng tối đa</label>

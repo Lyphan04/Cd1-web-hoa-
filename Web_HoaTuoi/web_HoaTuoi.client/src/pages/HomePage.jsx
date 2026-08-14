@@ -12,14 +12,16 @@ import { Star, ShoppingBag, Users } from "lucide-react";
 const getCategoryImg = (slug, dbImageUrl) => {
     // Ưu tiên fallback sang ảnh cứng trong assets
     const assetMap = {
-        'hoa-hong': 'hh1.jpg',
-        'hoa-tulip': 'tl1.jpg',
-        'hoa-huong-duong': 'hhd1.jpg',
-        'hoa-cam-tu-cau': 'ctc1.jpg',
-        'hoa-cuoi': 'hc1.jpg',
-        'gio-hoa': 'gh1.jpg',
-        'hoa-lan': 'l5.jpg',
-        'vali-hoa': '1.jpg'
+        'hoa-sinh-nhat': 'gh1.jpg',
+        'hoa-khai-truong': 'gh13.jpg',
+        'hoa-cuoi-cho-co-dau': 'hc1.jpg',
+        'hoa-chia-buon-tang-le': 'l1.jpg',
+        'hoa-theo-loai': 'hh1.jpg',
+        'hoa-thiet-ke-theo-kieu-dang': 'ctc1.jpg',
+        'hoa-chu-de-dip-le': 'tl1.jpg',
+        'hoa-sap-hoa-kho': '1.jpg',
+        'cay-canh-chau-hoa-de-ban': 'l5.jpg',
+        'hoa-choi-tet-nu-tam-xuan': 'hhd1.jpg'
     };
 
     if (assetMap[slug]) return resolveImage(assetMap[slug]);

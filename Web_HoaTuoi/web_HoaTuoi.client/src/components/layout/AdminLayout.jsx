@@ -101,7 +101,7 @@ export default function AdminLayout() {
             {/* Sidebar */}
             <aside
                 className={`${collapsed ? "w-16" : "w-60"
-                    } flex-shrink-0 bg-white border-r border-gray-100 flex flex-col transition-all duration-200`}
+                    } flex-shrink-0 bg-white border-r border-gray-100 flex flex-col transition-all duration-200 h-screen sticky top-0`}
             >
                 {/* Logo */}
                 <div className="h-16 flex items-center px-4 border-b border-gray-100 gap-3">
@@ -140,99 +140,92 @@ export default function AdminLayout() {
                     })}
                 </nav>
 
-                {/* User + Logout */}
-                <div className="p-3 border-t border-gray-100">
-                    {!collapsed && (
-                        <div className="flex items-center gap-2 mb-2 px-2">
-                            <div className="w-8 h-8 rounded-full bg-pink-200 flex items-center justify-center text-pink-700 font-bold text-sm">
-                                {user?.fullName?.[0]}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-gray-800 truncate">
-                                    {user?.fullName}
-                                </p>
-                                <p className="text-[10px] text-gray-400 truncate">
-                                    {user?.email}
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
+                {/* Bottom Navigation */}
+                <div className="p-2 border-t border-gray-100">
                     <Link
                         to="/"
-                        className="flex items-center gap-2 w-full px-3 py-2 mb-1 text-sm text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Về trang chủ web"
                     >
-                        <Home size={16} />
-                        {!collapsed && "Về trang chủ web"}
+                        <Home size={18} />
+                        {!collapsed && <span>Về trang chủ web</span>}
                     </Link>
-
-                    <button
-                        onClick={logout}
-                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                    >
-                        <LogOut size={16} />
-                        {!collapsed && "Đăng xuất"}
-                    </button>
                 </div>
             </aside>
 
             {/* Main */}
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 relative">
+                <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 sticky top-0 z-20">
                     <h1 className="text-base font-semibold text-gray-800">
                         Quản trị Shop Hoa
                     </h1>
 
-                    {/* Notification Bell */}
-                    <div className="relative">
-                        <button 
-                            onClick={() => setShowNotifs(!showNotifs)}
-                            className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
-                        >
-                            <Bell size={20} />
-                            {unreadCount > 0 && (
-                                <span className="absolute top-1 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white">
-                                    {unreadCount}
-                                </span>
-                            )}
-                        </button>
+                    <div className="flex items-center gap-4">
+                        {/* Notification Bell */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => setShowNotifs(!showNotifs)}
+                                className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <Bell size={20} />
+                                {unreadCount > 0 && (
+                                    <span className="absolute top-1 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white">
+                                        {unreadCount}
+                                    </span>
+                                )}
+                            </button>
 
-                        {/* Dropdown */}
-                        {showNotifs && (
-                            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
-                                <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                                    <h3 className="font-bold text-gray-800">Thông báo</h3>
-                                    {unreadCount > 0 && (
-                                        <button onClick={markAllRead} className="text-xs text-blue-600 font-medium hover:underline">
-                                            Đánh dấu đã đọc
-                                        </button>
-                                    )}
-                                </div>
-                                <div className="max-h-[60vh] overflow-y-auto">
-                                    {notifications.length === 0 ? (
-                                        <div className="p-8 text-center text-gray-400 text-sm">
-                                            Không có thông báo nào
-                                        </div>
-                                    ) : (
-                                        <div className="divide-y divide-gray-50">
-                                            {notifications.map(n => (
-                                                <div key={n.id} className={`p-4 transition-colors ${n.isRead ? 'bg-white' : 'bg-blue-50/30'}`}>
-                                                    <div className="flex items-start gap-3">
-                                                        <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${n.isRead ? 'bg-transparent' : 'bg-blue-500'}`} />
-                                                        <div>
-                                                            <p className="text-sm font-bold text-gray-900">{n.title}</p>
-                                                            <p className="text-sm text-gray-600 mt-0.5">{n.message}</p>
-                                                            <p className="text-xs text-gray-400 mt-1.5">{n.time.toLocaleTimeString('vi-VN')}</p>
+                            {/* Dropdown */}
+                            {showNotifs && (
+                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                                    <div className="p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                                        <h3 className="font-bold text-gray-800">Thông báo</h3>
+                                        {unreadCount > 0 && (
+                                            <button onClick={markAllRead} className="text-xs text-blue-600 font-medium hover:underline">
+                                                Đánh dấu đã đọc
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="max-h-[60vh] overflow-y-auto">
+                                        {notifications.length === 0 ? (
+                                            <div className="p-8 text-center text-gray-400 text-sm">
+                                                Không có thông báo nào
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-gray-50">
+                                                {notifications.map(n => (
+                                                    <div key={n.id} className={`p-4 transition-colors ${n.isRead ? 'bg-white' : 'bg-blue-50/30'}`}>
+                                                        <div className="flex items-start gap-3">
+                                                            <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${n.isRead ? 'bg-transparent' : 'bg-blue-500'}`} />
+                                                            <div>
+                                                                <p className="text-sm font-bold text-gray-900">{n.title}</p>
+                                                                <p className="text-sm text-gray-600 mt-0.5">{n.message}</p>
+                                                                <p className="text-xs text-gray-400 mt-1.5">{n.time.toLocaleTimeString('vi-VN')}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                            )}
+                        </div>
+
+                        {/* User Profile + Logout */}
+                        <div className="flex items-center gap-3 border-l pl-3 border-gray-100">
+                            <div className="text-right hidden sm:block">
+                                <p className="text-xs font-bold text-gray-800">{user?.fullName}</p>
+                                <p className="text-[10px] text-gray-400 font-medium">{user?.email}</p>
                             </div>
-                        )}
+                            <button
+                                onClick={logout}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors flex items-center justify-center"
+                                title="Đăng xuất"
+                            >
+                                <LogOut size={20} />
+                            </button>
+                        </div>
                     </div>
                 </header>
 

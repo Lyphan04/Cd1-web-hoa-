@@ -1,4 +1,4 @@
-﻿// src/pages/admin/AdminProducts.jsx
+// src/pages/admin/AdminProducts.jsx
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Pencil, Trash2, Search, Image } from 'lucide-react';
 import apiClient from '../../api/client';
@@ -8,8 +8,8 @@ import toast from 'react-hot-toast';
 
 const EMPTY_FORM = {
   name: '', slug: '', description: '', price: '', salePrice: '', isOnSale: false,
-  categoryId: '', material: '', style: '', color: '',
-  lengthCm: '', widthCm: '', heightCm: '', weightKg: '', stock: '',
+  categoryId: '', flowerType: '', occasion: '', color: '',
+  bouquetSize: '', meaning: '', weightKg: '', stock: '',
   mainImageUrl: '',
 };
 
@@ -49,9 +49,9 @@ export default function AdminProducts() {
     setForm({
       name: p.name, slug: p.slug, description: p.description ?? '',
       price: p.price, salePrice: p.salePrice ?? '', isOnSale: p.isOnSale,
-      categoryId: p.categoryId ?? '', material: p.material, style: p.style,
-      color: p.color, lengthCm: p.lengthCm ?? '', widthCm: p.widthCm ?? '',
-      heightCm: p.heightCm ?? '', weightKg: p.weightKg ?? '', stock: p.stock,
+      categoryId: p.categoryId ?? '', flowerType: p.flowerType ?? '', occasion: p.occasion ?? '',
+      color: p.color ?? '', bouquetSize: p.bouquetSize ?? '', meaning: p.meaning ?? '',
+      weightKg: p.weightKg ?? '', stock: p.stock,
       mainImageUrl: p.mainImageUrl,
     });
     setEditId(p.id);
@@ -71,14 +71,13 @@ export default function AdminProducts() {
     setLoading(true);
     try {
       const payload = {
-     ...form,
-price: Number(form.price), salePrice: form.salePrice ? Number(form.salePrice) : null,
-        categoryId: Number(form.categoryId), stock: Number(form.stock),
-        lengthCm: form.lengthCm ? Number(form.lengthCm) : null,
-        widthCm: form.widthCm ? Number(form.widthCm) : null,
-        heightCm: form.heightCm ? Number(form.heightCm) : null,
+        ...form,
+        price: form.price ? Number(form.price) : 0,
+        salePrice: form.salePrice ? Number(form.salePrice) : null,
+        categoryId: form.categoryId ? Number(form.categoryId) : 0,
+        stock: form.stock !== null && form.stock !== undefined && form.stock !== '' ? Number(form.stock) : 0,
         weightKg: form.weightKg ? Number(form.weightKg) : null,
- };
+      };
       if (editId) await apiClient.put(`/products/${editId}`, payload);
       else await apiClient.post('/products', payload);
       toast.success(editId ? 'Cập nhật thành công!' : 'Tạo sản phẩm thành công!');
@@ -198,23 +197,26 @@ price: Number(form.price), salePrice: form.salePrice ? Number(form.salePrice) : 
 
   <div className="grid grid-cols-2 gap-4">
       {[
-    { name: 'name', label: 'Tên sản phẩm *', col: 2 },
-          { name: 'slug', label: 'Slug URL *', col: 2 },
-           { name: 'price', label: 'Giá gốc (VNĐ) *', type: 'number' },
-      { name: 'salePrice', label: 'Giá sale (VNĐ)', type: 'number' },
-  { name: 'stock', label: 'Tồn kho *', type: 'number' },
-                { name: 'material', label: 'Chất liệu' },
-    { name: 'style', label: 'Phong cách' },
-    { name: 'color', label: 'Màu sắc' },
-         { name: 'lengthCm', label: 'Dài (cm)', type: 'number' },
-      { name: 'widthCm', label: 'Rộng (cm)', type: 'number' },
-   { name: 'heightCm', label: 'Cao (cm)', type: 'number' },
+        { name: 'name', label: 'Tên sản phẩm *', col: 2 },
+        { name: 'slug', label: 'Slug URL *', col: 2 },
+        { name: 'price', label: 'Giá gốc (VNĐ) *', type: 'number' },
+        { name: 'salePrice', label: 'Giá sale (VNĐ)', type: 'number' },
+        { name: 'stock', label: 'Tồn kho *', type: 'number' },
+        { name: 'flowerType', label: 'Loại hoa (vd: Hoa hồng, Tulip...)' },
+        { name: 'occasion', label: 'Dịp tặng (vd: Sinh nhật, Tình yêu...)' },
+        { name: 'color', label: 'Màu sắc' },
+        { name: 'bouquetSize', label: 'Kích thước bó (vd: 50 bông...)' },
         { name: 'weightKg', label: 'Khối lượng (kg)', type: 'number' },
-         ].map(f => (
-       <div key={f.name} className={f.col === 2 ? 'col-span-2' : ''}>
-  <label className="block text-xs font-medium text-gray-600 mb-1">{f.label}</label>
- <input name={f.name} type={f.type ?? 'text'} value={form[f.name]} onChange={handleFormChange} className="input text-sm" />
-     </div>
+        { name: 'meaning', label: 'Ý nghĩa loài hoa', col: 2 },
+      ].map(f => (
+        <div key={f.name} className={f.col === 2 ? 'col-span-2' : ''}>
+          <label className="block text-xs font-medium text-gray-600 mb-1">{f.label}</label>
+          {f.name === 'meaning' ? (
+            <textarea name={f.name} value={form[f.name]} onChange={handleFormChange} rows={2} className="input text-sm resize-none" />
+          ) : (
+            <input name={f.name} type={f.type ?? 'text'} value={form[f.name]} onChange={handleFormChange} className="input text-sm" />
+          )}
+        </div>
       ))}
 
               {/* Category select */}

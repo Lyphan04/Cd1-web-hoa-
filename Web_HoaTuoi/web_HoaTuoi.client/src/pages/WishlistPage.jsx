@@ -94,7 +94,7 @@ export default function WishlistPage() {
                 <p className="text-sm mb-6" style={{ color: 'var(--craft-muted)' }}>
                     Hãy khám phá và thêm các sản phẩm bạn yêu thích vào danh sách nhé!
                 </p>
-                <Link to="/danh-muc" className="btn-primary">
+                <Link to="/hoa" className="btn-primary">
                     Khám phá sản phẩm
                 </Link>
             </div>
@@ -141,7 +141,7 @@ export default function WishlistPage() {
                                 style={{ border: '1px solid var(--craft-tan)' }}>
                                 <div className="flex items-center gap-4 p-4">
                                     {/* Ảnh sản phẩm */}
-                                    <Link to={`/san-pham/${item.slug}`}
+                                    <Link to={`/hoa/${item.slug}`}
                                         className="flex-shrink-0 w-24 h-24 md:w-28 md:h-28 rounded-xl overflow-hidden"
                                         style={{ backgroundColor: 'var(--craft-beige)' }}>
                                         <img src={imgSrc} alt={item.productName}
@@ -152,7 +152,7 @@ export default function WishlistPage() {
 
                                     {/* Thông tin sản phẩm */}
                                     <div className="flex-1 min-w-0">
-                                        <Link to={`/san-pham/${item.slug}`}
+                                        <Link to={`/hoa/${item.slug}`}
                                             className="text-sm md:text-base font-semibold leading-snug hover:underline line-clamp-2"
                                             style={{ color: 'var(--craft-brown)' }}>
                                             {item.productName}
@@ -214,7 +214,7 @@ export default function WishlistPage() {
 
             {/* Bottom CTA */}
             <div className="mt-10 text-center">
-                <Link to="/danh-muc" className="btn-outline">
+                <Link to="/hoa" className="btn-outline">
                     Tiếp tục khám phá
                 </Link>
             </div>

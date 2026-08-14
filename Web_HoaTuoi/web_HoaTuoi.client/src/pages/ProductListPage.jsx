@@ -58,14 +58,19 @@ export default function ProductListPage() {
   }
 
   const categoryTitleMap = {
-    'hoa-hong': 'Hoa Hồng',
-    'hoa-tulip': 'Hoa Tulip',
-    'hoa-huong-duong': 'Hoa Hướng Dương',
-    'hoa-cam-tu-cau': 'Hoa Cẩm Tú Cầu',
-    'hoa-cuoi': 'Hoa Cưới',
-    'gio-hoa': 'Giỏ Hoa',
-    'hoa-lan': 'Hoa Lan Hồ Điệp',
-    'vali-hoa': 'Vali Hoa',
+    'hoa-sinh-nhat': 'Hoa Sinh Nhật',
+    'hoa-khai-truong': 'Hoa Khai Trương',
+    'hoa-cuoi-cho-co-dau': 'Hoa Cưới & Cô Dâu',
+    'hoa-chia-buon-tang-le': 'Hoa Chia Buồn & Tang Lễ',
+    'hoa-theo-loai': 'Hoa Theo Loại',
+    'hoa-thiet-ke-theo-kieu-dang': 'Hoa Thiết Kế Theo Kiểu Dáng',
+    'hoa-chu-de-dip-le': 'Hoa Chủ Đề Dịp Lễ',
+    'hoa-sap-hoa-kho': 'Hoa Sáp & Hoa Khô',
+    'cay-canh-chau-hoa-de-ban': 'Cây Cảnh & Chậu Hoa Để Bàn',
+    'qua-tang-kem': 'Quà Tặng Kèm',
+    'hoa-choi-tet-nu-tam-xuan': 'Hoa Chơi Tết & Nụ Tầm Xuân',
+    'dich-vu-trang-tri-hoa-su-kien': 'Dịch Vụ Trang Trí Hoa Sự Kiện',
+    'goi-dang-ky-hoa-dinh-ky': 'Gói Đăng Ký Hoa Định Kỳ'
   };
 
   const pageTitle = filters.q
