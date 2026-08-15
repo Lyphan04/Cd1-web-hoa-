@@ -14,10 +14,22 @@ public static class DbSeeder
         UserManager<AppUser> userManager,
         RoleManager<IdentityRole> roleManager)
     {
+        // Tự động sửa lỗi bản ghi NULL trong CSDL trước khi xử lý
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync("DELETE FROM OrderItems WHERE OrderId IN (SELECT Id FROM Orders WHERE Status IS NULL OR TotalAmount IS NULL);");
+            await db.Database.ExecuteSqlRawAsync("DELETE FROM Orders WHERE Status IS NULL OR TotalAmount IS NULL;");
+            await db.Database.ExecuteSqlRawAsync("UPDATE Reviews SET IsApproved = ISNULL(IsApproved, 1) WHERE IsApproved IS NULL;");
+            await db.Database.ExecuteSqlRawAsync("UPDATE Reviews SET IsVerifiedPurchase = ISNULL(IsVerifiedPurchase, 1) WHERE IsVerifiedPurchase IS NULL;");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DB Auto-Repair Error] {ex.Message}");
+        }
         // Ưu tiên khôi phục toàn bộ dữ liệu gốc từ tệp sql_data/webhoatuoidb_data.sql nếu database trống
         if (!await db.Categories.AnyAsync())
         {
-            var sqlPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "sql_data", "webhoatuoidb_data.sql");
+            var sqlPath = Path.Combine(FindSqlDataDir(), "webhoatuoidb_data.sql");
             if (File.Exists(sqlPath))
             {
                 await SeedFromSqlFileAsync(db);
@@ -187,7 +199,7 @@ public static class DbSeeder
 
     public static async Task SeedFromSqlFileAsync(AppDbContext db)
     {
-        var sqlPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "sql_data", "webhoatuoidb_data.sql");
+        var sqlPath = Path.Combine(FindSqlDataDir(), "webhoatuoidb_data.sql");
         if (!File.Exists(sqlPath)) return;
 
         Console.WriteLine("[DB Seeder] Tim thay tep webhoatuoidb_data.sql. Dang tien hanh khoi phuc du lieu tu dong...");
@@ -221,5 +233,30 @@ public static class DbSeeder
                 Console.WriteLine($"[DB Seeder Error] Xay ra loi khi khoi phuc du lieu: {ex.Message}");
             }
         }
+    }
+
+    private static string FindSqlDataDir()
+    {
+        var current = Directory.GetCurrentDirectory();
+        var path1 = Path.Combine(current, "..", "sql_data");
+        if (Directory.Exists(path1)) return path1;
+        
+        var path2 = Path.Combine(current, "sql_data");
+        if (Directory.Exists(path2)) return path2;
+
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        var di = new DirectoryInfo(baseDir);
+        while (di != null)
+        {
+            var target = Path.Combine(di.FullName, "sql_data");
+            if (Directory.Exists(target)) return target;
+            
+            var target2 = Path.Combine(di.FullName, "Web_HoaTuoi", "sql_data");
+            if (Directory.Exists(target2)) return target2;
+
+            di = di.Parent;
+        }
+        
+        return path1;
     }
 }

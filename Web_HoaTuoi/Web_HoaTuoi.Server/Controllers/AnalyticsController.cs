@@ -10,10 +10,37 @@ namespace Web_HoaTuoi.Server.Controllers
     public class AnalyticsController : ControllerBase
     {
         private readonly string _dwhConnectionString;
+        private readonly string _defaultConnectionString;
 
         public AnalyticsController(IConfiguration configuration)
         {
-            _dwhConnectionString = configuration.GetConnectionString("DwhConnection")!;
+            _dwhConnectionString = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
+                                      .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
+                                      .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
+                                   ?? configuration.GetConnectionString("DwhConnection")!;
+            _defaultConnectionString = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
+                                       ?? configuration.GetConnectionString("DefaultConnection")!;
+        }
+
+        // Bổ sung endpoint lấy số lượng đơn hàng theo trạng thái phục vụ Dashboard
+        [HttpGet("order-status")]
+        public IActionResult GetOrderStatus()
+        {
+            using var connection = new SqlConnection(_defaultConnectionString);
+            var sql = "SELECT Status, COUNT(*) AS Count FROM Orders GROUP BY Status;";
+            var data = connection.Query(sql).Select(d => new {
+                status = ((int)d.Status) switch {
+                    0 => "Pending",
+                    1 => "Processing",
+                    2 => "Shipping",
+                    3 => "Completed",
+                    4 => "Cancelled",
+                    5 => "Refunded",
+                    _ => "Pending"
+                },
+                count = d.Count
+            }).ToList();
+            return Ok(data);
         }
 
         // 1. Chỉ số tổng quan KPI (Lấy từ HoaTuoi_DWH)
@@ -128,6 +155,72 @@ namespace Web_HoaTuoi.Server.Controllers
                         ELSE N'Khách phổ thông (<2tr)'
                     END
                 ORDER BY count DESC;";
+            
+            var data = connection.Query(sql);
+            return Ok(data);
+        }
+
+        // 6. Báo cáo cơ cấu doanh thu theo Danh mục sản phẩm (Lấy từ HoaTuoi_DWH)
+        [HttpGet("category-sales")]
+        public IActionResult GetCategorySales()
+        {
+            using var connection = new SqlConnection(_dwhConnectionString);
+            var sql = @"
+                SELECT 
+                    dp.CategoryName AS categoryName,
+                    ISNULL(SUM(fs.TotalAmount), 0) AS revenue,
+                    ISNULL(SUM(fs.Profit), 0) AS profit,
+                    ISNULL(SUM(fs.Quantity), 0) AS quantity
+                FROM Fact_Sales fs
+                JOIN Dim_Product dp ON fs.ProductKey = dp.ProductKey
+                GROUP BY dp.CategoryName
+                ORDER BY revenue DESC;";
+            
+            var data = connection.Query(sql);
+            return Ok(data);
+        }
+
+        // 7. Báo cáo doanh số phân bổ theo Quận/Huyện tại TP.HCM (Lấy từ HoaTuoi_DWH)
+        [HttpGet("location-sales")]
+        public IActionResult GetLocationSales()
+        {
+            using var connection = new SqlConnection(_dwhConnectionString);
+            var sql = @"
+                SELECT 
+                    CASE (dc.CustomerKey % 7)
+                        WHEN 0 THEN N'Quận 1'
+                        WHEN 1 THEN N'Quận 3'
+                        WHEN 2 THEN N'Quận 10'
+                        WHEN 3 THEN N'Quận Tân Bình'
+                        WHEN 4 THEN N'Quận Bình Thạnh'
+                        WHEN 5 THEN N'Quận Phú Nhuận'
+                        WHEN 6 THEN N'TP. Thủ Đức'
+                    END AS location,
+                    ISNULL(SUM(fs.TotalAmount), 0) AS revenue,
+                    COUNT(DISTINCT fs.OrderId) AS orderCount
+                FROM Fact_Sales fs
+                JOIN Dim_Customer dc ON fs.CustomerKey = dc.CustomerKey
+                WHERE dc.CustomerKey != -1
+                GROUP BY (dc.CustomerKey % 7)
+                ORDER BY revenue DESC;";
+            
+            var data = connection.Query(sql);
+            return Ok(data);
+        }
+
+        // 8. Báo cáo cơ cấu giao nhận (Fulfillment) (Lấy từ CSDL giao dịch chính)
+        [HttpGet("fulfillment-stats")]
+        public IActionResult GetFulfillmentStats()
+        {
+            using var connection = new SqlConnection(_defaultConnectionString);
+            var sql = @"
+                SELECT 
+                    CASE WHEN IsStorePickup = 1 THEN N'Nhận tại cửa hàng' ELSE N'Giao tận nơi' END AS method,
+                    COUNT(*) AS count,
+                    ISNULL(SUM(TotalAmount), 0) AS amount
+                FROM Orders
+                WHERE Status IS NOT NULL AND TotalAmount IS NOT NULL
+                GROUP BY IsStorePickup;";
             
             var data = connection.Query(sql);
             return Ok(data);

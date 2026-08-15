@@ -161,7 +161,48 @@ namespace Web_HoaTuoi.Server.Controllers
             _db.ChatMessages.Add(userMsg);
             await _db.SaveChangesAsync();
 
-            // 4. Tìm kiếm sản phẩm tương đồng (Vector Search)
+            // 4. Phân tích giới hạn giá từ câu query tiếng Việt (Lọc Hybrid)
+            decimal? minPrice = null;
+            decimal? maxPrice = null;
+            var lowerMsg = request.Message.ToLower();
+
+            var priceRegex = new System.Text.RegularExpressions.Regex(
+                @"(dưới|rẻ hơn|ít hơn|nhỏ hơn|thấp hơn|trên|hơn|từ|lớn hơn|cao hơn)\s+([0-9\.,]+)\s*(k|tr|triệu|tỷ|đ|đồng|ngàn|nghìn)?",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            var matchResult = priceRegex.Match(lowerMsg);
+            if (matchResult.Success)
+            {
+                var direction = matchResult.Groups[1].Value;
+                var numStr = matchResult.Groups[2].Value.Replace(".", "").Replace(",", "");
+                var unit = matchResult.Groups[3].Value;
+
+                if (decimal.TryParse(numStr, out decimal numVal))
+                {
+                    if (unit == "k" || unit == "ngàn" || unit == "nghìn")
+                    {
+                        numVal *= 1000;
+                    }
+                    else if (unit == "tr" || unit == "triệu")
+                    {
+                        numVal *= 1000000;
+                    }
+                    else if (numVal < 1000)
+                    {
+                        numVal *= 1000;
+                    }
+
+                    if (direction == "dưới" || direction == "rẻ hơn" || direction == "ít hơn" || direction == "nhỏ hơn" || direction == "thấp hơn")
+                    {
+                        maxPrice = numVal;
+                    }
+                    else if (direction == "trên" || direction == "hơn" || direction == "từ" || direction == "lớn hơn" || direction == "cao hơn")
+                    {
+                        minPrice = numVal;
+                    }
+                }
+            }
+
             List<ProductRecommendDto> recommendedProducts = new();
             try
             {
@@ -191,15 +232,33 @@ namespace Web_HoaTuoi.Server.Controllers
                         { "Price", 1 },
                         { "SalePrice", 1 },
                         { "MainImageUrl", 1 },
+                        { "IsActive", 1 },
+                        { "Stock", 1 },
                         { "score", new BsonDocument("$meta", "vectorSearchScore") }
                     });
 
-                    var matchStage = new BsonDocument("$match", new BsonDocument
+                    var matchQuery = new BsonDocument
                     {
                         { "score", new BsonDocument("$gte", 0.50) },
                         { "IsActive", true },
                         { "Stock", new BsonDocument("$gt", 0) }
-                    });
+                    };
+
+                    if (minPrice.HasValue || maxPrice.HasValue)
+                    {
+                        var priceFilter = new BsonDocument();
+                        if (minPrice.HasValue)
+                        {
+                            priceFilter.Add("$gte", new BsonDecimal128(minPrice.Value));
+                        }
+                        if (maxPrice.HasValue)
+                        {
+                            priceFilter.Add("$lte", new BsonDecimal128(maxPrice.Value));
+                        }
+                        matchQuery.Add("Price", priceFilter);
+                    }
+
+                    var matchStage = new BsonDocument("$match", matchQuery);
 
                     var pipeline = new[] { vectorSearchStage, projectStage, matchStage };
                     var resultsBson = await collection.Aggregate<BsonDocument>(pipeline).ToListAsync();
@@ -223,18 +282,28 @@ namespace Web_HoaTuoi.Server.Controllers
                 Console.WriteLine($"[Chat Vector Search Warning]: {ex.Message}");
             }
 
-            // Fallback SQL Search nếu vector search không trả về gì và tin nhắn chứa từ khóa liên quan đến mua hoa
-            if (recommendedProducts.Count == 0 && (request.Message.Contains("mua") || request.Message.Contains("tìm") || request.Message.Contains("hoa") || request.Message.Contains("giá")))
+            // Fallback SQL Search nếu vector search không trả về gì hoặc khi có bộ lọc giá cụ thể
+            if (recommendedProducts.Count == 0 && (minPrice.HasValue || maxPrice.HasValue || request.Message.Contains("mua") || request.Message.Contains("tìm") || request.Message.Contains("hoa") || request.Message.Contains("giá")))
             {
                 var keywords = request.Message.ToLower().Split(' ');
-                var sqlProducts = await _db.Products
-                    .Where(p => p.IsActive)
+                var sqlQuery = _db.Products.Where(p => p.IsActive);
+
+                if (minPrice.HasValue)
+                {
+                    sqlQuery = sqlQuery.Where(p => p.Price >= minPrice.Value);
+                }
+                if (maxPrice.HasValue)
+                {
+                    sqlQuery = sqlQuery.Where(p => p.Price <= maxPrice.Value);
+                }
+
+                var sqlProducts = await sqlQuery
                     .OrderByDescending(p => p.SoldCount)
                     .Take(50)
                     .ToListAsync();
 
                 recommendedProducts = sqlProducts
-                    .Where(p => keywords.Any(k => k.Length > 2 && p.Name.ToLower().Contains(k)))
+                    .Where(p => keywords.Any(k => k.Length > 2 && p.Name.ToLower().Contains(k)) || (minPrice.HasValue || maxPrice.HasValue))
                     .Take(4)
                     .Select(p => new ProductRecommendDto
                     {
@@ -504,7 +573,10 @@ namespace Web_HoaTuoi.Server.Controllers
             // 1. Chạy quy trình ETL Data Warehouse đồng thời
             try
             {
-                var dwhConnStr = _configuration.GetConnectionString("DwhConnection");
+                var dwhConnStr = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
+                                    .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
+                                    .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
+                                 ?? _configuration.GetConnectionString("DwhConnection");
                 if (!string.IsNullOrEmpty(dwhConnStr))
                 {
                     using var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr);

@@ -222,6 +222,24 @@ namespace Web_HoaTuoi.Server.Services
                 .Where(p => p.IsActive)
                 .ToListAsync();
 
+            var activeIds = activeProducts.Select(p => p.Id).ToList();
+
+            // 1. Tự động dọn dẹp các sản phẩm thừa trong MongoDB (đã bị xoá hoặc ẩn ở SQL Server)
+            try
+            {
+                var collection = GetMongoCollection();
+                var deleteFilter = Builders<FlowerEmbeddingDocument>.Filter.Not(
+                    Builders<FlowerEmbeddingDocument>.Filter.In(f => f.ProductId, activeIds)
+                );
+                var deleteResult = await collection.DeleteManyAsync(deleteFilter);
+                Console.WriteLine($"[VectorDbSync Clean] Đã dọn dẹp {deleteResult.DeletedCount} sản phẩm thừa khỏi MongoDB.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[VectorDbSync Warning] Không thể dọn dẹp sản phẩm thừa: {ex.Message}");
+            }
+
+            // 2. Đồng bộ các sản phẩm đang hoạt động
             int count = 0;
             foreach (var product in activeProducts)
             {

@@ -25,8 +25,10 @@ catch
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ──────────────────────────────────────────────
+var defaultConnStr = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
+                     ?? builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(defaultConnStr));
 
 // ── Redis ─────────────────────────────────────────────────
 var redisConn = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
@@ -214,7 +216,10 @@ using (var scope = app.Services.CreateScope())
             using (var dwhScope = rootServiceProvider.CreateScope())
             {
                 var config = dwhScope.ServiceProvider.GetRequiredService<IConfiguration>();
-                var dwhConnStr = config.GetConnectionString("DwhConnection");
+                var dwhConnStr = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
+                                    .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
+                                    .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
+                                 ?? config.GetConnectionString("DwhConnection");
                 if (!string.IsNullOrEmpty(dwhConnStr))
                 {
                     // Tự động khởi tạo database và schema nếu chưa có
@@ -309,7 +314,7 @@ async Task EnsureDwhInitializedAsync(string dwhConnStr)
             if (!tableExists)
             {
                 Console.WriteLine("[DWH Auto-Init] Khoi tao cac bang trong database HoaTuoi_DWH...");
-                var sqlDataDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "sql_data");
+                var sqlDataDir = FindSqlDataDir();
                 var createDwhPath = Path.Combine(sqlDataDir, "create_dwh.sql");
                 if (File.Exists(createDwhPath))
                 {
@@ -327,7 +332,7 @@ async Task EnsureDwhInitializedAsync(string dwhConnStr)
             }
 
             // Luôn cập nhật/tạo mới stored procedure ETL
-            var etlPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "sql_data", "etl_procedure_fixed.sql");
+            var etlPath = Path.Combine(FindSqlDataDir(), "etl_procedure_fixed.sql");
             if (File.Exists(etlPath))
             {
                 Console.WriteLine("[DWH Auto-Init] Nap hoac cap nhat stored procedure sp_ETL_Load_HoaTuoi_DWH...");
@@ -348,6 +353,31 @@ async Task EnsureDwhInitializedAsync(string dwhConnStr)
     {
         Console.WriteLine($"[DWH Auto-Init Error]: {ex.Message}");
     }
+}
+
+string FindSqlDataDir()
+{
+    var current = Directory.GetCurrentDirectory();
+    var path1 = Path.Combine(current, "..", "sql_data");
+    if (Directory.Exists(path1)) return path1;
+    
+    var path2 = Path.Combine(current, "sql_data");
+    if (Directory.Exists(path2)) return path2;
+
+    var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+    var di = new DirectoryInfo(baseDir);
+    while (di != null)
+    {
+        var target = Path.Combine(di.FullName, "sql_data");
+        if (Directory.Exists(target)) return target;
+        
+        var target2 = Path.Combine(di.FullName, "Web_HoaTuoi", "sql_data");
+        if (Directory.Exists(target2)) return target2;
+
+        di = di.Parent;
+    }
+    
+    return path1;
 }
 
 app.Run();

@@ -90,6 +90,9 @@ BEGIN
         LEFT JOIN Dim_Product dp ON oi.ProductId = dp.ProductId
         LEFT JOIN Dim_Time dt ON CAST(CONVERT(VARCHAR(8), o.CreatedAt, 112) AS INT) = dt.TimeKey
         WHERE dt.TimeKey IS NOT NULL
+          AND o.Status IS NOT NULL
+          AND o.Status != 4
+          AND o.Status != 5
     ) AS S ON T.OrderId = S.OrderId AND T.OrderDetailId = S.OrderDetailId
     WHEN MATCHED THEN
         UPDATE SET
@@ -104,6 +107,14 @@ BEGIN
     WHEN NOT MATCHED THEN
         INSERT (CustomerKey, ProductKey, TimeKey, OrderId, OrderDetailId, Quantity, UnitPrice, DiscountAmount, TotalAmount, Profit)
         VALUES (S.CustomerKey, S.ProductKey, S.TimeKey, S.OrderId, S.OrderDetailId, S.Quantity, S.UnitPrice, S.DiscountAmount, S.TotalAmount, S.Profit);
+
+    -- 5. Loại bỏ các đơn hàng bị huỷ hoặc hoàn tiền khỏi Fact_Sales nếu trước đó đã được đồng bộ
+    DELETE FROM Fact_Sales
+    WHERE OrderId IN (
+        SELECT Id 
+        FROM WebHoaTuoiDb.dbo.Orders
+        WHERE Status = 4 OR Status = 5 OR Status IS NULL
+    );
 
     PRINT 'ETL Load Completed Successfully.';
 END
