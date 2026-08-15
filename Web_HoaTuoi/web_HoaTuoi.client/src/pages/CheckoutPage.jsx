@@ -15,7 +15,7 @@ import LocationPicker from '../components/common/LocationPicker';
 // Modal QR thanh toán - Tự động xác nhận & Chuyên nghiệp
 // ============================================================
 function QrPaymentModal({ qrInfo, onClose, navigate }) {
-  const [countdown, setCountdown] = useState(60); // 1 phút
+  const [countdown, setCountdown] = useState(600); // 10 phút
   const [isSuccess, setIsSuccess] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [redirectCount, setRedirectCount] = useState(5);

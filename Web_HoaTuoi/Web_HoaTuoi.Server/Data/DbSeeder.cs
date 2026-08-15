@@ -14,6 +14,17 @@ public static class DbSeeder
         UserManager<AppUser> userManager,
         RoleManager<IdentityRole> roleManager)
     {
+        // Ưu tiên khôi phục toàn bộ dữ liệu gốc từ tệp sql_data/webhoatuoidb_data.sql nếu database trống
+        if (!await db.Categories.AnyAsync())
+        {
+            var sqlPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "sql_data", "webhoatuoidb_data.sql");
+            if (File.Exists(sqlPath))
+            {
+                await SeedFromSqlFileAsync(db);
+                return;
+            }
+        }
+
         // ── 1. Roles ──────────────────────────────────────────────
         foreach (var role in new[] { "Admin", "Customer", "Staff" })
         {
@@ -172,5 +183,43 @@ public static class DbSeeder
 
         db.Products.AddRange(products);
         await db.SaveChangesAsync();
+    }
+
+    public static async Task SeedFromSqlFileAsync(AppDbContext db)
+    {
+        var sqlPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "sql_data", "webhoatuoidb_data.sql");
+        if (!File.Exists(sqlPath)) return;
+
+        Console.WriteLine("[DB Seeder] Tim thay tep webhoatuoidb_data.sql. Dang tien hanh khoi phuc du lieu tu dong...");
+        
+        var script = await File.ReadAllTextAsync(sqlPath);
+        var commands = System.Text.RegularExpressions.Regex.Split(
+            script, 
+            @"^\s*GO\s*$", 
+            System.Text.RegularExpressions.RegexOptions.Multiline | System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        );
+
+        using (var transaction = await db.Database.BeginTransactionAsync())
+        {
+            try
+            {
+                foreach (var cmdText in commands)
+                {
+                    if (string.IsNullOrWhiteSpace(cmdText)) continue;
+                    
+                    // Bo qua lenh USE de chay truc tiep tren CSDL hien tai cua Entity Framework
+                    if (cmdText.TrimStart().StartsWith("USE ", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    await db.Database.ExecuteSqlRawAsync(cmdText);
+                }
+                await transaction.CommitAsync();
+                Console.WriteLine("[DB Seeder] Khoi phuc du lieu tu database backup thanh cong!");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                Console.WriteLine($"[DB Seeder Error] Xay ra loi khi khoi phuc du lieu: {ex.Message}");
+            }
+        }
     }
 }
