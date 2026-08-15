@@ -16,17 +16,33 @@ namespace Web_HoaTuoi.Server.Controllers
             _dwhConnectionString = configuration.GetConnectionString("DwhConnection")!;
         }
 
-        // 1. Biểu đồ doanh thu (Lấy từ HoaTuoi_DWH)
+        // 1. Chỉ số tổng quan KPI (Lấy từ HoaTuoi_DWH)
+        [HttpGet("stats")]
+        public IActionResult GetStats()
+        {
+            using var connection = new SqlConnection(_dwhConnectionString);
+            var sql = @"
+                SELECT 
+                    ISNULL(SUM(TotalAmount), 0) AS TotalRevenue,
+                    ISNULL(SUM(Profit), 0) AS TotalProfit,
+                    ISNULL(SUM(Quantity), 0) AS TotalQty,
+                    COUNT(DISTINCT OrderId) AS TotalOrders
+                FROM Fact_Sales;";
+            
+            var data = connection.QueryFirstOrDefault(sql);
+            return Ok(data);
+        }
+
+        // 2. Biểu đồ doanh thu & lợi nhuận theo tháng (Lấy từ HoaTuoi_DWH)
         [HttpGet("revenue-chart")]
         public IActionResult GetRevenueChart([FromQuery] string type = "year")
         {
             using var connection = new SqlConnection(_dwhConnectionString);
-            
-            // Lấy doanh thu theo tháng (để khớp yêu cầu "Doanh thu theo tháng" của đồ án)
             var sql = @"
                 SELECT 
                     dt.Month,
-                    SUM(fs.TotalAmount) AS Revenue
+                    SUM(fs.TotalAmount) AS Revenue,
+                    SUM(fs.Profit) AS Profit
                 FROM Fact_Sales fs
                 JOIN Dim_Time dt ON fs.TimeKey = dt.TimeKey
                 GROUP BY dt.Month
@@ -34,16 +50,36 @@ namespace Web_HoaTuoi.Server.Controllers
             
             var data = connection.Query(sql).ToList();
             
-            var result = Enumerable.Range(1, 12).Select(month => new
-            {
-                Label = $"Tháng {month}",
-                Revenue = data.FirstOrDefault(d => d.Month == month)?.Revenue ?? 0
+            var result = Enumerable.Range(1, 12).Select(month => {
+                var row = data.FirstOrDefault(d => d.Month == month);
+                return new
+                {
+                    Label = $"Tháng {month}",
+                    Revenue = row?.Revenue ?? 0,
+                    Profit = row?.Profit ?? 0
+                };
             }).ToList();
 
             return Ok(result);
         }
 
-        // 2. Top hoa bán chạy (Lấy từ HoaTuoi_DWH)
+        // 3. Kích hoạt đồng bộ dữ liệu phân tích ETL thủ công
+        [HttpPost("sync")]
+        public async Task<IActionResult> RunEtlSync()
+        {
+            try
+            {
+                using var connection = new SqlConnection(_dwhConnectionString);
+                await connection.ExecuteAsync("sp_ETL_Load_HoaTuoi_DWH", commandType: CommandType.StoredProcedure);
+                return Ok(new { success = true, message = "Đồng bộ dữ liệu phân tích (ETL) từ CSDL giao dịch sang DWH thành công!" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Lỗi đồng bộ ETL: {ex.Message}" });
+            }
+        }
+
+        // 4. Top hoa bán chạy (Lấy từ HoaTuoi_DWH)
         [HttpGet("top-products")]
         public IActionResult GetTopProducts()
         {
@@ -62,7 +98,7 @@ namespace Web_HoaTuoi.Server.Controllers
             return Ok(data);
         }
 
-        // 3. Phân khúc khách hàng (Lấy từ HoaTuoi_DWH)
+        // 5. Phân khúc khách hàng (Lấy từ HoaTuoi_DWH)
         [HttpGet("customer-segments")]
         public IActionResult GetCustomerSegments()
         {

@@ -84,3 +84,10 @@ BEGIN
     );
 END
 GO
+
+-- Tạo chỉ mục để tăng tốc độ truy vấn liên kết bảng (BI/PowerBI)
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_FactSales_Keys' AND object_id = OBJECT_ID('Fact_Sales'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_FactSales_Keys ON Fact_Sales(CustomerKey, ProductKey, TimeKey);
+END
+GO
