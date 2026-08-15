@@ -11,6 +11,7 @@ namespace Web_HoaTuoi.Server.Controllers
     {
         private readonly string _dwhConnectionString;
         private readonly string _defaultConnectionString;
+        private readonly string _mainDbName;
 
         public AnalyticsController(IConfiguration configuration)
         {
@@ -20,6 +21,9 @@ namespace Web_HoaTuoi.Server.Controllers
                                    ?? configuration.GetConnectionString("DwhConnection")!;
             _defaultConnectionString = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null) 
                                        ?? configuration.GetConnectionString("DefaultConnection")!;
+            
+            var builder = new SqlConnectionStringBuilder(_defaultConnectionString);
+            _mainDbName = builder.InitialCatalog;
         }
 
         // Bổ sung endpoint lấy số lượng đơn hàng theo trạng thái phục vụ Dashboard
@@ -111,14 +115,16 @@ namespace Web_HoaTuoi.Server.Controllers
         public IActionResult GetTopProducts()
         {
             using var connection = new SqlConnection(_dwhConnectionString);
-            var sql = @"
+            var sql = $@"
                 SELECT TOP 5 
-                    dp.ProductKey AS productId,
+                    dp.ProductId AS productId,
                     dp.ProductName AS productName,
-                    SUM(fs.Quantity) AS totalSold
+                    SUM(fs.Quantity) AS totalSold,
+                    ISNULL(p.MainImageUrl, '') AS mainImageUrl
                 FROM Fact_Sales fs
                 JOIN Dim_Product dp ON fs.ProductKey = dp.ProductKey
-                GROUP BY dp.ProductKey, dp.ProductName
+                LEFT JOIN {_mainDbName}.dbo.Products p ON dp.ProductId = p.Id
+                GROUP BY dp.ProductId, dp.ProductName, p.MainImageUrl
                 ORDER BY totalSold DESC;";
             
             var data = connection.Query(sql);
