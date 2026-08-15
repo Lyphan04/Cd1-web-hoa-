@@ -27,7 +27,10 @@ public class ProductsController : ControllerBase
     {
         try
         {
-            var dwhConnStr = _configuration.GetConnectionString("DwhConnection");
+            var dwhConnStr = DotNetEnv.Env.GetString("SQL_CONNECTION_STRING", null)?
+                                .Replace("Database=WebHoaTuoiDb", "Database=HoaTuoi_DWH")
+                                .Replace("database=WebHoaTuoiDb", "database=HoaTuoi_DWH") 
+                             ?? _configuration.GetConnectionString("DwhConnection");
             if (!string.IsNullOrEmpty(dwhConnStr))
             {
                 using var conn = new Microsoft.Data.SqlClient.SqlConnection(dwhConnStr);

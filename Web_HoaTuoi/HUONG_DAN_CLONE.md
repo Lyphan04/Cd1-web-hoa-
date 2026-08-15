@@ -16,15 +16,26 @@ cd Cd1-web-hoa-/Web_HoaTuoi
 
 ---
 
-## BƯỚC 2: CẤU HÌNH CHUỖI KẾT NỐI DATABASE
-Mở file `Web_HoaTuoi.Server/appsettings.json` bằng VS Code hoặc Visual Studio và cập nhật tên Server SQL của máy bạn tại mục `ConnectionStrings`:
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=YOUR_SQL_SERVER_NAME;Database=WebHoaTuoiDb;Trusted_Connection=True;TrustServerCertificate=True",
-  "DwhConnection": "Server=YOUR_SQL_SERVER_NAME;Database=HoaTuoi_DWH;Trusted_Connection=True;TrustServerCertificate=True"
-}
+## BƯỚC 2: THIẾT LẬP FILE .env.local (Bắt buộc cho Database và AI Chatbot)
+Vì các khoá API bảo mật và chuỗi kết nối cục bộ của bạn (`.env.local`) nằm trong danh sách `.gitignore` để tránh rò rỉ mã nguồn lên GitHub, bạn cần thiết lập tệp này thủ công:
+
+1. Copy tệp mẫu **`Web_HoaTuoi.Server/.env.example`** thành **`.env.local`** (hoặc tạo một file mới đặt tên là `.env.local` tại thư mục **`Web_HoaTuoi.Server/`**).
+2. Mở file `.env.local` ra và điền các thông tin kết nối cục bộ của máy bạn:
+```env
+# 1. Đường dẫn SQL Server cục bộ trên máy bạn (Hệ thống tự động suy luận ra Database DWH từ chuỗi này)
+SQL_CONNECTION_STRING="Server=YOUR_SQL_SERVER_NAME;Database=WebHoaTuoiDb;Trusted_Connection=True;TrustServerCertificate=True"
+
+# 2. Chuỗi kết nối MongoDB Atlas phục vụ Vector Database Search
+MONGO_CONNECTION_STRING="mongodb+srv://YOUR_USERNAME:YOUR_PASSWORD@cluster0.xxxxxx.mongodb.net/?appName=Cluster0"
+
+# 3. Gemini API Key phục vụ Trợ lý Tư vấn AI
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
+
+# 4. OpenAI API Key (Nếu có cấu hình thêm OpenAI)
+OPENAI_API_KEY="YOUR_OPENAI_API_KEY_HERE"
 ```
-* **Lưu ý:** Thay `YOUR_SQL_SERVER_NAME` bằng tên instance SQL Server của bạn (ví dụ: `localhost\SQLEXPRESS` hoặc `.` hoặc `DESKTOP-ABCXYZ`).
+* **Lưu ý đặc biệt:** Thay `YOUR_SQL_SERVER_NAME` bằng tên instance SQL Server cục bộ của bạn (ví dụ: `localhost\SQLEXPRESS` hoặc `.` hoặc `DESKTOP-ABCXYZ`).
+* **Tại sao không cần sửa `appsettings.json`?** Hệ thống đã được lập trình động. Khi bạn điền `SQL_CONNECTION_STRING` vào `.env.local`, backend sẽ tự động kết nối đến cơ sở dữ liệu chính của bạn và tự động tạo kho dữ liệu phân tích `HoaTuoi_DWH` song song mà không cần bạn phải can thiệp sửa tệp `appsettings.json` công khai.
 
 ---
 

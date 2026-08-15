@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import apiClient from '../../api/client';
 import { formatVnd } from '../../utils/format';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
-import { TrendingUp, Package, Award, Users, RefreshCw, DollarSign, Wallet, ShoppingBag } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
+import { TrendingUp, Package, Award, Users, RefreshCw, DollarSign, Wallet, ShoppingBag, MapPin, ClipboardList, Download, Percent } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 export default function AdminReports() {
   const [chartData, setChartData] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
   const [customerSegments, setCustomerSegments] = useState([]);
+  const [categorySales, setCategorySales] = useState([]);
+  const [locationSales, setLocationSales] = useState([]);
+  const [fulfillmentStats, setFulfillmentStats] = useState([]);
   const [stats, setStats] = useState({ totalRevenue: 0, totalProfit: 0, totalQty: 0, totalOrders: 0 });
   const [timeRange, setTimeRange] = useState('year'); // month, year
   const [loading, setLoading] = useState(true);
@@ -21,16 +26,27 @@ export default function AdminReports() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [resChart, resTopProducts, resCustomerSegments, resStats] = await Promise.all([
+      const [resChart, resTopProducts, resCustomerSegments, resStats, resCategory, resLocation, resFulfillment] = await Promise.all([
         apiClient.get(`/analytics/revenue-chart?type=${timeRange}`),
         apiClient.get('/analytics/top-products'),
         apiClient.get('/analytics/customer-segments'),
         apiClient.get('/analytics/stats'),
+        apiClient.get('/analytics/category-sales'),
+        apiClient.get('/analytics/location-sales'),
+        apiClient.get('/analytics/fulfillment-stats'),
       ]);
       setChartData(resChart.data);
       setTopProducts(resTopProducts.data);
       setCustomerSegments(resCustomerSegments.data);
-      setStats(resStats.data || { totalRevenue: 0, totalProfit: 0, totalQty: 0, totalOrders: 0 });
+      setCategorySales(resCategory.data);
+      setLocationSales(resLocation.data);
+      setFulfillmentStats(resFulfillment.data);
+      setStats({
+        totalRevenue: resStats.data?.TotalRevenue ?? resStats.data?.totalRevenue ?? 0,
+        totalProfit: resStats.data?.TotalProfit ?? resStats.data?.totalProfit ?? 0,
+        totalQty: resStats.data?.TotalQty ?? resStats.data?.totalQty ?? 0,
+        totalOrders: resStats.data?.TotalOrders ?? resStats.data?.totalOrders ?? 0,
+      });
     } catch {
       toast.error('Lỗi tải dữ liệu báo cáo');
     } finally {
@@ -52,6 +68,261 @@ export default function AdminReports() {
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Lyp Flower Admin';
+      workbook.lastModifiedBy = 'Lyp Flower Admin';
+      workbook.created = new Date();
+      workbook.modified = new Date();
+
+      // Style constants
+      const primaryHeaderStyle = {
+        font: { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFF' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E293B' } }, // Slate 800
+        alignment: { vertical: 'middle', horizontal: 'center' },
+        border: {
+          top: { style: 'thin', color: { argb: '94A3B8' } },
+          bottom: { style: 'medium', color: { argb: '475569' } },
+          left: { style: 'thin', color: { argb: '94A3B8' } },
+          right: { style: 'thin', color: { argb: '94A3B8' } }
+        }
+      };
+
+      const titleStyle = {
+        font: { name: 'Arial', size: 14, bold: true, color: { argb: '0F172A' } }
+      };
+
+      const dataStyle = {
+        font: { name: 'Arial', size: 10 },
+        alignment: { vertical: 'middle' },
+        border: {
+          top: { style: 'thin', color: { argb: 'E2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'E2E8F0' } },
+          left: { style: 'thin', color: { argb: 'E2E8F0' } },
+          right: { style: 'thin', color: { argb: 'E2E8F0' } }
+        }
+      };
+
+      const totalStyle = {
+        font: { name: 'Arial', size: 10, bold: true, color: { argb: '0F172A' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F1F5F9' } }, // Slate 100
+        border: {
+          top: { style: 'thin', color: { argb: '94A3B8' } },
+          bottom: { style: 'double', color: { argb: '475569' } },
+          left: { style: 'thin', color: { argb: '94A3B8' } },
+          right: { style: 'thin', color: { argb: '94A3B8' } }
+        }
+      };
+
+      // ── SHEET 1: TỔNG QUAN KPI ─────────────────────────────
+      const wsOverview = workbook.addWorksheet('Tổng quan KPI');
+      wsOverview.views = [{ showGridLines: true }];
+      
+      const tRow = wsOverview.addRow(["BÁO CÁO THỐNG KÊ TỔNG QUAN KPI - LYP FLOWER"]);
+      tRow.getCell(1).font = titleStyle.font;
+      wsOverview.addRow(["Hệ thống phân tích Kho dữ liệu (DWH & OLAP)"]);
+      wsOverview.addRow([`Thời điểm xuất: ${new Date().toLocaleString("vi-VN")}`]);
+      wsOverview.addRow([]);
+      
+      const ovHeaders = wsOverview.addRow(["Chỉ số báo cáo", "Giá trị thực tế", "Đơn vị tính"]);
+      ovHeaders.height = 28;
+      ovHeaders.eachCell((cell) => {
+        Object.assign(cell, primaryHeaderStyle);
+      });
+
+      const rows = [
+        ["Tổng doanh thu DWH", stats.totalRevenue, "VND"],
+        ["Lợi nhuận ròng DWH", stats.totalProfit, "VND"],
+        ["Sản lượng bán ra", stats.totalQty, "Cành/Bó"],
+        ["Số lượng đơn hàng thành công", stats.totalOrders, "Đơn"]
+      ];
+
+      rows.forEach((r, idx) => {
+        const row = wsOverview.addRow(r);
+        row.height = 22;
+        row.eachCell((cell, colNum) => {
+          Object.assign(cell, dataStyle);
+          if (colNum === 2) {
+            cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right' };
+          } else if (colNum === 3) {
+            cell.alignment = { horizontal: 'center' };
+          }
+          if (idx % 2 === 1) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          }
+        });
+      });
+
+      wsOverview.getColumn(1).width = 30;
+      wsOverview.getColumn(2).width = 25;
+      wsOverview.getColumn(3).width = 15;
+
+      // ── SHEET 2: DOANH SỐ DANH MỤC ─────────────────────────
+      const wsCategory = workbook.addWorksheet('Doanh số Danh mục');
+      wsCategory.views = [{ showGridLines: true }];
+      
+      const catTitle = wsCategory.addRow(["BÁO CÁO DOANH THU & LỢI NHUẬN THEO DANH MỤC SẢN PHẨM"]);
+      catTitle.getCell(1).font = titleStyle.font;
+      wsCategory.addRow(["Phân tích chuyên sâu từ Data Warehouse"]);
+      wsCategory.addRow([]);
+
+      const catHeaders = wsCategory.addRow(["Tên Danh Mục Hoa", "Sản Lượng Bán (Bó/Cành)", "Doanh Thu (VND)", "Lợi Nhuận Ròng (VND)"]);
+      catHeaders.height = 28;
+      catHeaders.eachCell((cell) => {
+        Object.assign(cell, primaryHeaderStyle);
+      });
+
+      let totalCatQty = 0;
+      let totalCatRev = 0;
+      let totalCatProfit = 0;
+
+      categorySales.forEach((item, idx) => {
+        totalCatQty += item.quantity;
+        totalCatRev += item.revenue;
+        totalCatProfit += item.profit;
+
+        const row = wsCategory.addRow([item.categoryName, item.quantity, item.revenue, item.profit]);
+        row.height = 22;
+        row.eachCell((cell, colNum) => {
+          Object.assign(cell, dataStyle);
+          if (colNum >= 2) {
+            cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right' };
+          }
+          if (idx % 2 === 1) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          }
+        });
+      });
+
+      const catTotalRow = wsCategory.addRow(["Tổng cộng", totalCatQty, totalCatRev, totalCatProfit]);
+      catTotalRow.height = 24;
+      catTotalRow.eachCell((cell, colNum) => {
+        Object.assign(cell, totalStyle);
+        if (colNum >= 2) {
+          cell.numFmt = '#,##0';
+          cell.alignment = { horizontal: 'right' };
+        }
+      });
+
+      wsCategory.getColumn(1).width = 25;
+      wsCategory.getColumn(2).width = 25;
+      wsCategory.getColumn(3).width = 25;
+      wsCategory.getColumn(4).width = 25;
+
+      // ── SHEET 3: ĐỊA BÀN GIAO HÀNG ─────────────────────────
+      const wsLocation = workbook.addWorksheet('Địa bàn giao hàng');
+      wsLocation.views = [{ showGridLines: true }];
+      
+      const locTitle = wsLocation.addRow(["PHÂN BỔ DOANH THU THEO QUẬN NỘI THÀNH TP.HCM"]);
+      locTitle.getCell(1).font = titleStyle.font;
+      wsLocation.addRow(["Báo cáo phân tích phân khúc địa lý khách hàng"]);
+      wsLocation.addRow([]);
+
+      const locHeaders = wsLocation.addRow(["Khu Vực/Quận Huyện", "Số Đơn Hàng", "Doanh Thu (VND)"]);
+      locHeaders.height = 28;
+      locHeaders.eachCell((cell) => {
+        Object.assign(cell, primaryHeaderStyle);
+      });
+
+      let totalLocOrders = 0;
+      let totalLocRev = 0;
+
+      locationSales.forEach((item, idx) => {
+        totalLocOrders += item.orderCount;
+        totalLocRev += item.revenue;
+
+        const row = wsLocation.addRow([item.location, item.orderCount, item.revenue]);
+        row.height = 22;
+        row.eachCell((cell, colNum) => {
+          Object.assign(cell, dataStyle);
+          if (colNum >= 2) {
+            cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right' };
+          }
+          if (idx % 2 === 1) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          }
+        });
+      });
+
+      const locTotalRow = wsLocation.addRow(["Tổng cộng", totalLocOrders, totalLocRev]);
+      locTotalRow.height = 24;
+      locTotalRow.eachCell((cell, colNum) => {
+        Object.assign(cell, totalStyle);
+        if (colNum >= 2) {
+          cell.numFmt = '#,##0';
+          cell.alignment = { horizontal: 'right' };
+        }
+      });
+
+      wsLocation.getColumn(1).width = 30;
+      wsLocation.getColumn(2).width = 20;
+      wsLocation.getColumn(3).width = 25;
+
+      // ── SHEET 4: CƠ CẤU GIAO NHẬN ──────────────────────────
+      const wsFulfillment = workbook.addWorksheet('Cơ cấu giao nhận');
+      wsFulfillment.views = [{ showGridLines: true }];
+      
+      const fulTitle = wsFulfillment.addRow(["BÁO CÁO THỐNG KÊ PHƯƠNG THỨC GIAO NHẬN"]);
+      fulTitle.getCell(1).font = titleStyle.font;
+      wsFulfillment.addRow(["So sánh hiệu quả giữa nhận tại cửa hàng vs giao hàng tận nơi"]);
+      wsFulfillment.addRow([]);
+
+      const fulHeaders = wsFulfillment.addRow(["Phương thức nhận hoa", "Số lượng đơn hàng", "Tổng tiền thanh toán (VND)"]);
+      fulHeaders.height = 28;
+      fulHeaders.eachCell((cell) => {
+        Object.assign(cell, primaryHeaderStyle);
+      });
+
+      let totalFulOrders = 0;
+      let totalFulAmount = 0;
+
+      fulfillmentStats.forEach((item, idx) => {
+        totalFulOrders += item.count;
+        totalFulAmount += item.amount;
+
+        const row = wsFulfillment.addRow([item.method, item.count, item.amount]);
+        row.height = 22;
+        row.eachCell((cell, colNum) => {
+          Object.assign(cell, dataStyle);
+          if (colNum >= 2) {
+            cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right' };
+          }
+          if (idx % 2 === 1) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          }
+        });
+      });
+
+      const fulTotalRow = wsFulfillment.addRow(["Tổng cộng", totalFulOrders, totalFulAmount]);
+      fulTotalRow.height = 24;
+      fulTotalRow.eachCell((cell, colNum) => {
+        Object.assign(cell, totalStyle);
+        if (colNum >= 2) {
+          cell.numFmt = '#,##0';
+          cell.alignment = { horizontal: 'right' };
+        }
+      });
+
+      wsFulfillment.getColumn(1).width = 30;
+      wsFulfillment.getColumn(2).width = 20;
+      wsFulfillment.getColumn(3).width = 25;
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      saveAs(blob, `Bao_Cao_Thong_Ke_DWH_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success("Xuất file báo cáo Excel thành công!");
+
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi xuất file báo cáo!");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header với nút đồng bộ */}
@@ -60,14 +331,23 @@ export default function AdminReports() {
           <h1 className="text-xl font-bold text-gray-900">Báo cáo & Thống kê (DWH)</h1>
           <p className="text-sm text-gray-500 mt-1">Dữ liệu phân tích trực tiếp từ Data Warehouse (HoaTuoi_DWH)</p>
         </div>
-        <button
-          onClick={handleSyncDwh}
-          disabled={syncing}
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md shadow-orange-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
-          {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Kho dữ liệu (ETL)'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+          >
+            <Download size={15} />
+            Xuất báo cáo (Excel)
+          </button>
+          <button
+            onClick={handleSyncDwh}
+            disabled={syncing}
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md shadow-orange-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Đang đồng bộ...' : 'Đồng bộ Kho dữ liệu (ETL)'}
+          </button>
+        </div>
       </div>
 
       {/* Grid thẻ KPI */}
@@ -212,6 +492,127 @@ export default function AdminReports() {
                 <p className="text-sm text-gray-400 text-center py-4">Chưa có dữ liệu</p>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grid Biểu đồ Danh mục và Địa bàn (HCMC) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Cơ cấu doanh thu theo Danh mục */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
+          <div>
+            <h2 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+              <Percent size={20} className="text-purple-500" /> Cơ cấu doanh thu Danh mục
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">Tỷ trọng doanh thu giữa các danh mục hoa tươi</p>
+          </div>
+          <div className="h-64 w-full relative flex items-center justify-center">
+            {loading ? (
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+            ) : categorySales.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categorySales}
+                    dataKey="revenue"
+                    nameKey="categoryName"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={4}
+                  >
+                    {categorySales.map((entry, index) => {
+                      const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#00c49f', '#ffbb28'];
+                      return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
+                    })}
+                  </Pie>
+                  <RechartsTooltip formatter={(value) => formatVnd(value)} />
+                  <Legend layout="horizontal" verticalAlign="bottom" align="center" iconType="circle" />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-gray-400">Chưa có dữ liệu</p>
+            )}
+          </div>
+        </div>
+
+        {/* Phân bổ doanh thu theo Quận (HCMC) */}
+        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
+          <div>
+            <h2 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+              <MapPin size={20} className="text-emerald-500" /> Thống kê khu vực giao nhận (TP.HCM)
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">Top khu vực quận/huyện nội thành đóng góp doanh số cao nhất</p>
+          </div>
+          <div className="h-64 w-full">
+            {loading ? (
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+            ) : locationSales.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={locationSales} layout="vertical" margin={{ left: 15, right: 10, top: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tickFormatter={(val) => `₫${(val / 1000000).toFixed(1)}M`} />
+                  <YAxis dataKey="location" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                  <RechartsTooltip formatter={(value) => formatVnd(value)} />
+                  <Bar dataKey="revenue" name="Doanh thu" fill="#10b981" radius={[0, 4, 4, 0]} maxBarSize={15} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-12">Chưa có dữ liệu</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Row 4: Chi tiết Giao nhận (Fulfillment) và Số liệu thô */}
+      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mt-6">
+        <h2 className="font-bold text-gray-900 text-lg mb-4 flex items-center gap-2">
+          <ClipboardList size={20} className="text-blue-500" /> Báo cáo chi tiết Cơ cấu Giao nhận & Doanh số
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Bảng cơ cấu giao nhận */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-500">
+              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3">Phương thức nhận hoa</th>
+                  <th className="px-4 py-3 text-right">Số lượng đơn</th>
+                  <th className="px-4 py-3 text-right">Tổng tiền</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {fulfillmentStats.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-900">{item.method}</td>
+                    <td className="px-4 py-3 text-right">{item.count} đơn</td>
+                    <td className="px-4 py-3 text-right font-bold text-amber-600">{formatVnd(item.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Bảng chi tiết danh mục */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-500">
+              <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3">Danh mục</th>
+                  <th className="px-4 py-3 text-right">Sản lượng</th>
+                  <th className="px-4 py-3 text-right">Lợi nhuận</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {categorySales.slice(0, 4).map((item, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-semibold text-gray-900">{item.categoryName}</td>
+                    <td className="px-4 py-3 text-right">{item.quantity} cành/bó</td>
+                    <td className="px-4 py-3 text-right font-bold text-emerald-600">{formatVnd(item.profit)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

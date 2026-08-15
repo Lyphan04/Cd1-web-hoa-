@@ -314,7 +314,7 @@ public class OrdersController : ControllerBase
     {
         var query = _db.Orders.AsQueryable();
 
-        if (!string.IsNullOrEmpty(status) && Enum.TryParse<OrderStatus>(status, out var parsedStatus))
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<OrderStatus>(status, true, out var parsedStatus))
         {
             query = query.Where(o => o.Status == parsedStatus);
         }
