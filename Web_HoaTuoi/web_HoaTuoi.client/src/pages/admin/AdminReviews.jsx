@@ -14,7 +14,7 @@ export default function AdminReviews() {
   const [reviews, setReviews] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState('pending'); // default to pending
+  const [filter, setFilter] = useState(''); // default to all (Tất cả)
   const [replyId, setReplyId] = useState(null);
   const [replyText, setReplyText] = useState('');
   const PAGE_SIZE = 15;

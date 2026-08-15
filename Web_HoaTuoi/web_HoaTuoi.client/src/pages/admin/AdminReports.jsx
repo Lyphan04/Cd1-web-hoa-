@@ -19,6 +19,25 @@ export default function AdminReports() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
+  const chartCategoryData = (() => {
+    if (!categorySales || categorySales.length === 0) return [];
+    const sorted = [...categorySales].sort((a, b) => b.revenue - a.revenue);
+    if (sorted.length <= 6) return sorted;
+    const top = sorted.slice(0, 5);
+    const otherSum = sorted.slice(5).reduce((sum, item) => sum + item.revenue, 0);
+    const otherQty = sorted.slice(5).reduce((sum, item) => sum + item.quantity, 0);
+    const otherProfit = sorted.slice(5).reduce((sum, item) => sum + item.profit, 0);
+    return [
+      ...top,
+      {
+        categoryName: 'Danh mục khác',
+        revenue: otherSum,
+        quantity: otherQty,
+        profit: otherProfit
+      }
+    ];
+  })();
+
   useEffect(() => {
     fetchData();
   }, [timeRange]);
@@ -80,7 +99,7 @@ export default function AdminReports() {
       const primaryHeaderStyle = {
         font: { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFF' } },
         fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: '1E293B' } }, // Slate 800
-        alignment: { vertical: 'middle', horizontal: 'center' },
+        alignment: { vertical: 'middle', horizontal: 'center', wrapText: true },
         border: {
           top: { style: 'thin', color: { argb: '94A3B8' } },
           bottom: { style: 'medium', color: { argb: '475569' } },
@@ -91,6 +110,10 @@ export default function AdminReports() {
 
       const titleStyle = {
         font: { name: 'Arial', size: 14, bold: true, color: { argb: '0F172A' } }
+      };
+
+      const subtitleStyle = {
+        font: { name: 'Arial', size: 10, italic: true, color: { argb: '475569' } }
       };
 
       const dataStyle = {
@@ -121,21 +144,22 @@ export default function AdminReports() {
       
       const tRow = wsOverview.addRow(["BÁO CÁO THỐNG KÊ TỔNG QUAN KPI - LYP FLOWER"]);
       tRow.getCell(1).font = titleStyle.font;
-      wsOverview.addRow(["Hệ thống phân tích Kho dữ liệu (DWH & OLAP)"]);
-      wsOverview.addRow([`Thời điểm xuất: ${new Date().toLocaleString("vi-VN")}`]);
+      const subRow1 = wsOverview.addRow(["Hệ thống phân tích Kho dữ liệu (DWH & OLAP)"]);
+      subRow1.getCell(1).font = subtitleStyle.font;
+      wsOverview.addRow([`Thời điểm xuất báo cáo: ${new Date().toLocaleString("vi-VN")}`]);
       wsOverview.addRow([]);
       
-      const ovHeaders = wsOverview.addRow(["Chỉ số báo cáo", "Giá trị thực tế", "Đơn vị tính"]);
+      const ovHeaders = wsOverview.addRow(["Chỉ số báo cáo", "Giá trị thực tế", "Đơn vị tính", "Ý nghĩa & Phân tích chuyên sâu"]);
       ovHeaders.height = 28;
       ovHeaders.eachCell((cell) => {
         Object.assign(cell, primaryHeaderStyle);
       });
 
       const rows = [
-        ["Tổng doanh thu DWH", stats.totalRevenue, "VND"],
-        ["Lợi nhuận ròng DWH", stats.totalProfit, "VND"],
-        ["Sản lượng bán ra", stats.totalQty, "Cành/Bó"],
-        ["Số lượng đơn hàng thành công", stats.totalOrders, "Đơn"]
+        ["Tổng doanh thu DWH", stats.totalRevenue, "VND", "Tổng doanh thu bán hàng tích lũy từ các đơn hàng hoàn thành."],
+        ["Lợi nhuận ròng DWH", stats.totalProfit, "VND", "Doanh thu sau khi trừ đi giá vốn sản phẩm và chiết khấu giảm giá."],
+        ["Sản lượng hoa bán ra", stats.totalQty, "Cành/Bó", "Tổng số lượng sản phẩm hoa đã giao thành công đến tay khách hàng."],
+        ["Số lượng đơn hàng thành công", stats.totalOrders, "Đơn", "Tổng số lượng giao dịch mua bán thành công."]
       ];
 
       rows.forEach((r, idx) => {
@@ -155,9 +179,37 @@ export default function AdminReports() {
         });
       });
 
-      wsOverview.getColumn(1).width = 30;
+      // Thêm các chỉ số tính toán thông minh bằng công thức Excel
+      const aovRow = wsOverview.addRow(["Giá trị đơn hàng trung bình (AOV)", { formula: '=B6/B9' }, "VND", "Doanh số trung bình thu được trên mỗi đơn hàng."]);
+      aovRow.height = 22;
+      aovRow.eachCell((cell, colNum) => {
+        Object.assign(cell, dataStyle);
+        cell.font = { name: 'Arial', size: 10, bold: true };
+        if (colNum === 2) {
+          cell.numFmt = '#,##0';
+          cell.alignment = { horizontal: 'right' };
+        } else if (colNum === 3) {
+          cell.alignment = { horizontal: 'center' };
+        }
+      });
+
+      const gpmRow = wsOverview.addRow(["Tỷ suất lợi nhuận ròng", { formula: '=B7/B6' }, "%", "Tỷ lệ lợi nhuận ròng thu về trên mỗi đồng doanh thu (hiệu suất sinh lời)."]);
+      gpmRow.height = 22;
+      gpmRow.eachCell((cell, colNum) => {
+        Object.assign(cell, dataStyle);
+        cell.font = { name: 'Arial', size: 10, bold: true };
+        if (colNum === 2) {
+          cell.numFmt = '0.0%';
+          cell.alignment = { horizontal: 'right' };
+        } else if (colNum === 3) {
+          cell.alignment = { horizontal: 'center' };
+        }
+      });
+
+      wsOverview.getColumn(1).width = 35;
       wsOverview.getColumn(2).width = 25;
       wsOverview.getColumn(3).width = 15;
+      wsOverview.getColumn(4).width = 60;
 
       // ── SHEET 2: DOANH SỐ DANH MỤC ─────────────────────────
       const wsCategory = workbook.addWorksheet('Doanh số Danh mục');
@@ -165,10 +217,18 @@ export default function AdminReports() {
       
       const catTitle = wsCategory.addRow(["BÁO CÁO DOANH THU & LỢI NHUẬN THEO DANH MỤC SẢN PHẨM"]);
       catTitle.getCell(1).font = titleStyle.font;
-      wsCategory.addRow(["Phân tích chuyên sâu từ Data Warehouse"]);
+      const subRow2 = wsCategory.addRow(["Phân tích tỷ trọng doanh số và tỷ suất lợi nhuận của từng danh mục hoa tươi"]);
+      subRow2.getCell(1).font = subtitleStyle.font;
       wsCategory.addRow([]);
 
-      const catHeaders = wsCategory.addRow(["Tên Danh Mục Hoa", "Sản Lượng Bán (Bó/Cành)", "Doanh Thu (VND)", "Lợi Nhuận Ròng (VND)"]);
+      const catHeaders = wsCategory.addRow([
+        "Tên Danh Mục Hoa", 
+        "Sản Lượng Bán (Bó/Cành)", 
+        "Doanh Thu (VND)", 
+        "Tỷ Trọng Doanh Thu (%)",
+        "Lợi Nhuận Ròng (VND)",
+        "Tỷ Suất Lợi Nhuận (%)"
+      ]);
       catHeaders.height = 28;
       catHeaders.eachCell((cell) => {
         Object.assign(cell, primaryHeaderStyle);
@@ -177,18 +237,33 @@ export default function AdminReports() {
       let totalCatQty = 0;
       let totalCatRev = 0;
       let totalCatProfit = 0;
+      const catStartRowIndex = 5;
+      const catDataLength = categorySales.length;
 
       categorySales.forEach((item, idx) => {
         totalCatQty += item.quantity;
         totalCatRev += item.revenue;
         totalCatProfit += item.profit;
+        
+        const currentRowNum = catStartRowIndex + idx;
+        const totalRowNum = catStartRowIndex + catDataLength;
 
-        const row = wsCategory.addRow([item.categoryName, item.quantity, item.revenue, item.profit]);
+        const row = wsCategory.addRow([
+          item.categoryName, 
+          item.quantity, 
+          item.revenue, 
+          { formula: `=C${currentRowNum}/C${totalRowNum}` },
+          item.profit,
+          { formula: `=E${currentRowNum}/C${currentRowNum}` }
+        ]);
         row.height = 22;
         row.eachCell((cell, colNum) => {
           Object.assign(cell, dataStyle);
-          if (colNum >= 2) {
+          if (colNum === 2 || colNum === 3 || colNum === 5) {
             cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right' };
+          } else if (colNum === 4 || colNum === 6) {
+            cell.numFmt = '0.0%';
             cell.alignment = { horizontal: 'right' };
           }
           if (idx % 2 === 1) {
@@ -197,20 +272,32 @@ export default function AdminReports() {
         });
       });
 
-      const catTotalRow = wsCategory.addRow(["Tổng cộng", totalCatQty, totalCatRev, totalCatProfit]);
+      const catTotalRow = wsCategory.addRow([
+        "Tổng cộng", 
+        totalCatQty, 
+        totalCatRev, 
+        { formula: '=SUM(D5:D' + (catStartRowIndex + catDataLength - 1) + ')' },
+        totalCatProfit,
+        { formula: `=E${catStartRowIndex + catDataLength}/C${catStartRowIndex + catDataLength}` }
+      ]);
       catTotalRow.height = 24;
       catTotalRow.eachCell((cell, colNum) => {
         Object.assign(cell, totalStyle);
-        if (colNum >= 2) {
+        if (colNum === 2 || colNum === 3 || colNum === 5) {
           cell.numFmt = '#,##0';
+          cell.alignment = { horizontal: 'right' };
+        } else if (colNum === 4 || colNum === 6) {
+          cell.numFmt = '0.0%';
           cell.alignment = { horizontal: 'right' };
         }
       });
 
       wsCategory.getColumn(1).width = 25;
-      wsCategory.getColumn(2).width = 25;
-      wsCategory.getColumn(3).width = 25;
-      wsCategory.getColumn(4).width = 25;
+      wsCategory.getColumn(2).width = 22;
+      wsCategory.getColumn(3).width = 22;
+      wsCategory.getColumn(4).width = 22;
+      wsCategory.getColumn(5).width = 22;
+      wsCategory.getColumn(6).width = 22;
 
       // ── SHEET 3: ĐỊA BÀN GIAO HÀNG ─────────────────────────
       const wsLocation = workbook.addWorksheet('Địa bàn giao hàng');
@@ -218,10 +305,17 @@ export default function AdminReports() {
       
       const locTitle = wsLocation.addRow(["PHÂN BỔ DOANH THU THEO QUẬN NỘI THÀNH TP.HCM"]);
       locTitle.getCell(1).font = titleStyle.font;
-      wsLocation.addRow(["Báo cáo phân tích phân khúc địa lý khách hàng"]);
+      const subRow3 = wsLocation.addRow(["Báo cáo phân tích phân khúc địa lý và mật độ đơn hàng của khách hàng"]);
+      subRow3.getCell(1).font = subtitleStyle.font;
       wsLocation.addRow([]);
 
-      const locHeaders = wsLocation.addRow(["Khu Vực/Quận Huyện", "Số Đơn Hàng", "Doanh Thu (VND)"]);
+      const locHeaders = wsLocation.addRow([
+        "Khu Vực/Quận Huyện", 
+        "Số Đơn Hàng", 
+        "Tỷ Lệ Đơn Hàng (%)",
+        "Doanh Thu (VND)",
+        "Tỷ Trọng Doanh Số (%)"
+      ]);
       locHeaders.height = 28;
       locHeaders.eachCell((cell) => {
         Object.assign(cell, primaryHeaderStyle);
@@ -229,17 +323,31 @@ export default function AdminReports() {
 
       let totalLocOrders = 0;
       let totalLocRev = 0;
+      const locStartRowIndex = 5;
+      const locDataLength = locationSales.length;
 
       locationSales.forEach((item, idx) => {
         totalLocOrders += item.orderCount;
         totalLocRev += item.revenue;
 
-        const row = wsLocation.addRow([item.location, item.orderCount, item.revenue]);
+        const currentRowNum = locStartRowIndex + idx;
+        const totalRowNum = locStartRowIndex + locDataLength;
+
+        const row = wsLocation.addRow([
+          item.location, 
+          item.orderCount, 
+          { formula: `=B${currentRowNum}/B${totalRowNum}` },
+          item.revenue,
+          { formula: `=D${currentRowNum}/D${totalRowNum}` }
+        ]);
         row.height = 22;
         row.eachCell((cell, colNum) => {
           Object.assign(cell, dataStyle);
-          if (colNum >= 2) {
+          if (colNum === 2 || colNum === 4) {
             cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right' };
+          } else if (colNum === 3 || colNum === 5) {
+            cell.numFmt = '0.0%';
             cell.alignment = { horizontal: 'right' };
           }
           if (idx % 2 === 1) {
@@ -248,19 +356,30 @@ export default function AdminReports() {
         });
       });
 
-      const locTotalRow = wsLocation.addRow(["Tổng cộng", totalLocOrders, totalLocRev]);
+      const locTotalRow = wsLocation.addRow([
+        "Tổng cộng", 
+        totalLocOrders, 
+        { formula: '=SUM(C5:C' + (locStartRowIndex + locDataLength - 1) + ')' },
+        totalLocRev,
+        { formula: '=SUM(E5:E' + (locStartRowIndex + locDataLength - 1) + ')' }
+      ]);
       locTotalRow.height = 24;
       locTotalRow.eachCell((cell, colNum) => {
         Object.assign(cell, totalStyle);
-        if (colNum >= 2) {
+        if (colNum === 2 || colNum === 4) {
           cell.numFmt = '#,##0';
+          cell.alignment = { horizontal: 'right' };
+        } else if (colNum === 3 || colNum === 5) {
+          cell.numFmt = '0.0%';
           cell.alignment = { horizontal: 'right' };
         }
       });
 
-      wsLocation.getColumn(1).width = 30;
+      wsLocation.getColumn(1).width = 25;
       wsLocation.getColumn(2).width = 20;
-      wsLocation.getColumn(3).width = 25;
+      wsLocation.getColumn(3).width = 20;
+      wsLocation.getColumn(4).width = 25;
+      wsLocation.getColumn(5).width = 20;
 
       // ── SHEET 4: CƠ CẤU GIAO NHẬN ──────────────────────────
       const wsFulfillment = workbook.addWorksheet('Cơ cấu giao nhận');
@@ -268,10 +387,17 @@ export default function AdminReports() {
       
       const fulTitle = wsFulfillment.addRow(["BÁO CÁO THỐNG KÊ PHƯƠNG THỨC GIAO NHẬN"]);
       fulTitle.getCell(1).font = titleStyle.font;
-      wsFulfillment.addRow(["So sánh hiệu quả giữa nhận tại cửa hàng vs giao hàng tận nơi"]);
+      const subRow4 = wsFulfillment.addRow(["So sánh mức độ hiệu quả và cơ cấu giữa nhận tại cửa hàng vs giao hàng tận nơi"]);
+      subRow4.getCell(1).font = subtitleStyle.font;
       wsFulfillment.addRow([]);
 
-      const fulHeaders = wsFulfillment.addRow(["Phương thức nhận hoa", "Số lượng đơn hàng", "Tổng tiền thanh toán (VND)"]);
+      const fulHeaders = wsFulfillment.addRow([
+        "Phương thức nhận hoa", 
+        "Số lượng đơn hàng", 
+        "Tỷ lệ đơn hàng (%)",
+        "Tổng tiền thanh toán (VND)",
+        "Tỷ trọng doanh số (%)"
+      ]);
       fulHeaders.height = 28;
       fulHeaders.eachCell((cell) => {
         Object.assign(cell, primaryHeaderStyle);
@@ -279,16 +405,93 @@ export default function AdminReports() {
 
       let totalFulOrders = 0;
       let totalFulAmount = 0;
+      const fulStartRowIndex = 5;
+      const fulDataLength = fulfillmentStats.length;
 
       fulfillmentStats.forEach((item, idx) => {
         totalFulOrders += item.count;
         totalFulAmount += item.amount;
 
-        const row = wsFulfillment.addRow([item.method, item.count, item.amount]);
+        const currentRowNum = fulStartRowIndex + idx;
+        const totalRowNum = fulStartRowIndex + fulDataLength;
+
+        const row = wsFulfillment.addRow([
+          item.method === 'Delivery' ? 'Giao hàng tận nơi' : 'Tự nhận tại cửa hàng', 
+          item.count, 
+          { formula: `=B${currentRowNum}/B${totalRowNum}` },
+          item.amount,
+          { formula: `=D${currentRowNum}/D${totalRowNum}` }
+        ]);
         row.height = 22;
         row.eachCell((cell, colNum) => {
           Object.assign(cell, dataStyle);
-          if (colNum >= 2) {
+          if (colNum === 2 || colNum === 4) {
+            cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right' };
+          } else if (colNum === 3 || colNum === 5) {
+            cell.numFmt = '0.0%';
+            cell.alignment = { horizontal: 'right' };
+          }
+          if (idx % 2 === 1) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          }
+        });
+      });
+
+      const fulTotalRow = wsFulfillment.addRow([
+        "Tổng cộng", 
+        totalFulOrders, 
+        { formula: '=SUM(C5:C' + (fulStartRowIndex + fulDataLength - 1) + ')' },
+        totalFulAmount,
+        { formula: '=SUM(E5:E' + (fulStartRowIndex + fulDataLength - 1) + ')' }
+      ]);
+      fulTotalRow.height = 24;
+      fulTotalRow.eachCell((cell, colNum) => {
+        Object.assign(cell, totalStyle);
+        if (colNum === 2 || colNum === 4) {
+          cell.numFmt = '#,##0';
+          cell.alignment = { horizontal: 'right' };
+        } else if (colNum === 3 || colNum === 5) {
+          cell.numFmt = '0.0%';
+          cell.alignment = { horizontal: 'right' };
+        }
+      });
+
+      wsFulfillment.getColumn(1).width = 25;
+      wsFulfillment.getColumn(2).width = 20;
+      wsFulfillment.getColumn(3).width = 20;
+      wsFulfillment.getColumn(4).width = 25;
+      wsFulfillment.getColumn(5).width = 20;
+
+      // ── SHEET 5: TOP HOA BÁN CHẠY ──────────────────────────
+      const wsTopProducts = workbook.addWorksheet('Top hoa bán chạy');
+      wsTopProducts.views = [{ showGridLines: true }];
+      
+      const topTitle = wsTopProducts.addRow(["DANH SÁCH TOP SẢN PHẨM BÁN CHẠY NHẤT"]);
+      topTitle.getCell(1).font = titleStyle.font;
+      const subRow5 = wsTopProducts.addRow(["Top 5 sản phẩm có sản lượng bán ra nhiều nhất dựa trên DWH"]);
+      subRow5.getCell(1).font = subtitleStyle.font;
+      wsTopProducts.addRow([]);
+
+      const topHeaders = wsTopProducts.addRow(["Thứ hạng", "Mã sản phẩm", "Tên sản phẩm", "Sản lượng đã bán (Bó/Cành)"]);
+      topHeaders.height = 28;
+      topHeaders.eachCell((cell) => {
+        Object.assign(cell, primaryHeaderStyle);
+      });
+
+      topProducts.forEach((item, idx) => {
+        const row = wsTopProducts.addRow([
+          idx + 1, 
+          item.productId, 
+          item.productName, 
+          item.totalSold
+        ]);
+        row.height = 22;
+        row.eachCell((cell, colNum) => {
+          Object.assign(cell, dataStyle);
+          if (colNum === 1 || colNum === 2) {
+            cell.alignment = { horizontal: 'center' };
+          } else if (colNum === 4) {
             cell.numFmt = '#,##0';
             cell.alignment = { horizontal: 'right' };
           }
@@ -298,19 +501,78 @@ export default function AdminReports() {
         });
       });
 
-      const fulTotalRow = wsFulfillment.addRow(["Tổng cộng", totalFulOrders, totalFulAmount]);
-      fulTotalRow.height = 24;
-      fulTotalRow.eachCell((cell, colNum) => {
+      wsTopProducts.getColumn(1).width = 15;
+      wsTopProducts.getColumn(2).width = 18;
+      wsTopProducts.getColumn(3).width = 40;
+      wsTopProducts.getColumn(4).width = 25;
+
+      // ── SHEET 6: PHÂN KHÚC KHÁCH HÀNG ──────────────────────
+      const wsSegments = workbook.addWorksheet('Phân khúc Khách hàng');
+      wsSegments.views = [{ showGridLines: true }];
+      
+      const segTitle = wsSegments.addRow(["PHÂN TÍCH PHÂN KHÚC KHÁCH HÀNG"]);
+      segTitle.getCell(1).font = titleStyle.font;
+      const subRow6 = wsSegments.addRow(["Phân nhóm khách hàng dựa trên sản lượng và mức đóng góp doanh số"]);
+      subRow6.getCell(1).font = subtitleStyle.font;
+      wsSegments.addRow([]);
+
+      const segHeaders = wsSegments.addRow(["Phân khúc khách hàng", "Số lượng khách hàng (KH)", "Tỷ trọng (%)"]);
+      segHeaders.height = 28;
+      segHeaders.eachCell((cell) => {
+        Object.assign(cell, primaryHeaderStyle);
+      });
+
+      let totalSegUsers = 0;
+      const segStartRowIndex = 5;
+      const segDataLength = customerSegments.length;
+
+      customerSegments.forEach((item, idx) => {
+        totalSegUsers += item.count;
+
+        const currentRowNum = segStartRowIndex + idx;
+        const totalRowNum = segStartRowIndex + segDataLength;
+
+        const row = wsSegments.addRow([
+          item.segment, 
+          item.count, 
+          { formula: `=B${currentRowNum}/B${totalRowNum}` }
+        ]);
+        row.height = 22;
+        row.eachCell((cell, colNum) => {
+          Object.assign(cell, dataStyle);
+          if (colNum === 2) {
+            cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right' };
+          } else if (colNum === 3) {
+            cell.numFmt = '0.0%';
+            cell.alignment = { horizontal: 'right' };
+          }
+          if (idx % 2 === 1) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F8FAFC' } };
+          }
+        });
+      });
+
+      const segTotalRow = wsSegments.addRow([
+        "Tổng cộng", 
+        totalSegUsers, 
+        { formula: '=SUM(C5:C' + (segStartRowIndex + segDataLength - 1) + ')' }
+      ]);
+      segTotalRow.height = 24;
+      segTotalRow.eachCell((cell, colNum) => {
         Object.assign(cell, totalStyle);
-        if (colNum >= 2) {
+        if (colNum === 2) {
           cell.numFmt = '#,##0';
+          cell.alignment = { horizontal: 'right' };
+        } else if (colNum === 3) {
+          cell.numFmt = '0.0%';
           cell.alignment = { horizontal: 'right' };
         }
       });
 
-      wsFulfillment.getColumn(1).width = 30;
-      wsFulfillment.getColumn(2).width = 20;
-      wsFulfillment.getColumn(3).width = 25;
+      wsSegments.getColumn(1).width = 30;
+      wsSegments.getColumn(2).width = 25;
+      wsSegments.getColumn(3).width = 20;
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -425,7 +687,7 @@ export default function AdminReports() {
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} tickFormatter={(val) => `₫${(val / 1000000).toFixed(1)}M`} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} tickFormatter={(val) => `₫${(val / 1000000).toFixed(1)}Tr`} />
                   <RechartsTooltip 
                     formatter={(value, name) => [formatVnd(value), name === 'revenue' ? 'Doanh thu' : 'Lợi nhuận ròng']}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
@@ -509,11 +771,11 @@ export default function AdminReports() {
           <div className="h-64 w-full relative flex items-center justify-center">
             {loading ? (
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-            ) : categorySales.length > 0 ? (
+            ) : chartCategoryData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={categorySales}
+                    data={chartCategoryData}
                     dataKey="revenue"
                     nameKey="categoryName"
                     cx="50%"
@@ -522,7 +784,7 @@ export default function AdminReports() {
                     outerRadius={70}
                     paddingAngle={4}
                   >
-                    {categorySales.map((entry, index) => {
+                    {chartCategoryData.map((entry, index) => {
                       const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#00c49f', '#ffbb28'];
                       return <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />;
                     })}
@@ -552,7 +814,7 @@ export default function AdminReports() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={locationSales} layout="vertical" margin={{ left: 15, right: 10, top: 5, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
-                  <XAxis type="number" axisLine={false} tickLine={false} tickFormatter={(val) => `₫${(val / 1000000).toFixed(1)}M`} />
+                  <XAxis type="number" axisLine={false} tickLine={false} tickFormatter={(val) => `₫${(val / 1000000).toFixed(1)}Tr`} />
                   <YAxis dataKey="location" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
                   <RechartsTooltip formatter={(value) => formatVnd(value)} />
                   <Bar dataKey="revenue" name="Doanh thu" fill="#10b981" radius={[0, 4, 4, 0]} maxBarSize={15} />
