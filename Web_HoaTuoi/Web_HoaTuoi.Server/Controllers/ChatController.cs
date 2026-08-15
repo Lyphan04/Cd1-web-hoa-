@@ -196,7 +196,9 @@ namespace Web_HoaTuoi.Server.Controllers
 
                     var matchStage = new BsonDocument("$match", new BsonDocument
                     {
-                        { "score", new BsonDocument("$gte", 0.50) }
+                        { "score", new BsonDocument("$gte", 0.50) },
+                        { "IsActive", true },
+                        { "Stock", new BsonDocument("$gt", 0) }
                     });
 
                     var pipeline = new[] { vectorSearchStage, projectStage, matchStage };

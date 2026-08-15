@@ -59,9 +59,6 @@ BEGIN
         VALUES (S.TimeKey, S.FullDate, S.Day, S.Month, S.MonthName, S.Quarter, S.Year, S.DayOfWeek, S.IsWeekend);
 
     -- 4. Load Fact_Sales
-    -- TRUNCATE de reset (phu hop cho demo/do an)
-    TRUNCATE TABLE Fact_Sales;
-
     -- Them dummy customer neu chua co
     IF NOT EXISTS(SELECT 1 FROM Dim_Customer WHERE CustomerId = '-1')
     BEGIN
@@ -69,27 +66,44 @@ BEGIN
         VALUES ('-1', 'Unknown Guest', 'N/A', 'N/A', 'N/A', 'N/A');
     END
 
-    -- Insert Fact_Sales tu WebHoaTuoiDb (OrderItems thay vi OrderDetails)
-    INSERT INTO Fact_Sales (CustomerKey, ProductKey, TimeKey, OrderId, OrderDetailId, Quantity, UnitPrice, DiscountAmount, TotalAmount, Profit)
-    SELECT
-        ISNULL(dc.CustomerKey,
-            (SELECT TOP 1 CustomerKey FROM Dim_Customer WHERE CustomerId = '-1')
-        ) AS CustomerKey,
-        ISNULL(dp.ProductKey, -1) AS ProductKey,
-        dt.TimeKey,
-        o.Id AS OrderId,
-        oi.Id AS OrderDetailId,
-        oi.Quantity,
-        oi.UnitPrice,
-        0 AS DiscountAmount,
-        (oi.Quantity * oi.UnitPrice) AS TotalAmount,
-        ((oi.Quantity * oi.UnitPrice) - (oi.Quantity * ISNULL(dp.Cost, oi.UnitPrice * 0.7))) AS Profit
-    FROM WebHoaTuoiDb.dbo.Orders o
-    JOIN WebHoaTuoiDb.dbo.OrderItems oi ON o.Id = oi.OrderId
-    LEFT JOIN Dim_Customer dc ON o.UserId = dc.CustomerId
-    LEFT JOIN Dim_Product dp ON oi.ProductId = dp.ProductId
-    LEFT JOIN Dim_Time dt ON CAST(CONVERT(VARCHAR(8), o.CreatedAt, 112) AS INT) = dt.TimeKey
-    WHERE dt.TimeKey IS NOT NULL;
+    MERGE Fact_Sales AS T
+    USING (
+        SELECT
+            ISNULL(dc.CustomerKey, (SELECT TOP 1 CustomerKey FROM Dim_Customer WHERE CustomerId = '-1')) AS CustomerKey,
+            ISNULL(dp.ProductKey, -1) AS ProductKey,
+            dt.TimeKey,
+            o.Id AS OrderId,
+            oi.Id AS OrderDetailId,
+            oi.Quantity,
+            oi.UnitPrice,
+            -- Tinh toan chiet khau ti le cho tung dong mat hang: (LineTotal * DiscountAmount_Order) / TotalAmount_Order
+            CASE 
+                WHEN o.TotalAmount = 0 THEN 0 
+                ELSE ROUND((oi.Quantity * oi.UnitPrice * ISNULL(o.DiscountAmount, 0)) / o.TotalAmount, 2)
+            END AS DiscountAmount,
+            (oi.Quantity * oi.UnitPrice) AS TotalAmount,
+            -- Tinh toan loi nhuan: Doanh thu - Chiet khau - Gia von (Quantity * Cost)
+            ((oi.Quantity * oi.UnitPrice) - CASE WHEN o.TotalAmount = 0 THEN 0 ELSE ROUND((oi.Quantity * oi.UnitPrice * ISNULL(o.DiscountAmount, 0)) / o.TotalAmount, 2) END - (oi.Quantity * ISNULL(dp.Cost, oi.UnitPrice * 0.7))) AS Profit
+        FROM WebHoaTuoiDb.dbo.Orders o
+        JOIN WebHoaTuoiDb.dbo.OrderItems oi ON o.Id = oi.OrderId
+        LEFT JOIN Dim_Customer dc ON o.UserId = dc.CustomerId
+        LEFT JOIN Dim_Product dp ON oi.ProductId = dp.ProductId
+        LEFT JOIN Dim_Time dt ON CAST(CONVERT(VARCHAR(8), o.CreatedAt, 112) AS INT) = dt.TimeKey
+        WHERE dt.TimeKey IS NOT NULL
+    ) AS S ON T.OrderId = S.OrderId AND T.OrderDetailId = S.OrderDetailId
+    WHEN MATCHED THEN
+        UPDATE SET
+            T.CustomerKey = S.CustomerKey,
+            T.ProductKey = S.ProductKey,
+            T.TimeKey = S.TimeKey,
+            T.Quantity = S.Quantity,
+            T.UnitPrice = S.UnitPrice,
+            T.DiscountAmount = S.DiscountAmount,
+            T.TotalAmount = S.TotalAmount,
+            T.Profit = S.Profit
+    WHEN NOT MATCHED THEN
+        INSERT (CustomerKey, ProductKey, TimeKey, OrderId, OrderDetailId, Quantity, UnitPrice, DiscountAmount, TotalAmount, Profit)
+        VALUES (S.CustomerKey, S.ProductKey, S.TimeKey, S.OrderId, S.OrderDetailId, S.Quantity, S.UnitPrice, S.DiscountAmount, S.TotalAmount, S.Profit);
 
     PRINT 'ETL Load Completed Successfully.';
 END

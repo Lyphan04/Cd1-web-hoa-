@@ -374,12 +374,43 @@ export default function AdminAiChat() {
               <button
                 onClick={handleRunSync}
                 disabled={syncing}
-                className="btn-primary flex items-center gap-2 max-w-xs font-bold text-xs py-3 w-full"
+                className="btn-primary flex items-center gap-2 max-w-xs font-bold text-xs py-3 w-full animate-none"
               >
                 <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
                 {syncing ? "Đang đồng bộ..." : "Đồng bộ thủ công ngay"}
               </button>
-              <p className="text-[10px] text-gray-400 mt-2">Quá trình này có thể mất vài phút tùy vào số lượng sản phẩm cần tạo embedding qua Gemini API (giới hạn 0.5s/sản phẩm).</p>
+              <p className="text-[10px] text-gray-400 mt-2 font-medium">Quá trình này có thể mất vài phút tùy vào số lượng sản phẩm cần tạo embedding qua Gemini API (giới hạn 0.5s/sản phẩm).</p>
+            </div>
+
+            {/* Bảng thông số kỹ thuật hệ thống */}
+            <div className="mt-8 pt-6 border-t border-slate-100">
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Thông số cấu hình Vector Database (OLAP AI)</h3>
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden text-xs">
+                <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2.5">
+                  <span className="text-gray-500 font-medium">Cơ sở dữ liệu Vector:</span>
+                  <span className="font-bold text-slate-800">MongoDB Atlas (Cloud)</span>
+                </div>
+                <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2.5">
+                  <span className="text-gray-500 font-medium">Trạng thái kết nối:</span>
+                  <span className="font-bold text-emerald-600 flex items-center gap-1">● Active (Đã kết nối)</span>
+                </div>
+                <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2.5">
+                  <span className="text-gray-500 font-medium">Mô hình nhúng (Embedding):</span>
+                  <span className="font-mono text-slate-700">models/text-embedding-004</span>
+                </div>
+                <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2.5">
+                  <span className="text-gray-500 font-medium">Số chiều Vector (Dimensions):</span>
+                  <span className="font-bold text-slate-800">768 dimensions</span>
+                </div>
+                <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2.5">
+                  <span className="text-gray-500 font-medium">Thuật toán so khớp:</span>
+                  <span className="font-bold text-slate-800">Cosine Similarity (Độ tương đồng Cosin)</span>
+                </div>
+                <div className="grid grid-cols-2 px-4 py-2.5">
+                  <span className="text-gray-500 font-medium">Mô hình ngôn ngữ (LLM):</span>
+                  <span className="font-mono text-slate-700">gemini-3.6-flash (Google AI)</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
